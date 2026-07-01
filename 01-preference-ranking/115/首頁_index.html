@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教甄小工具 · 小小黑開箱</title>
+<style>
+:root{--ink:#1a2433;--ink-soft:#5b6677;--line:#dfe4ec;--bg:#f3f5f8;--card:#fff;--accent:#0f6e6e;--accent-soft:#e3f1f0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:36px 16px 64px}
+.eyebrow{font-size:12px;letter-spacing:.16em;color:var(--accent);font-weight:700;text-transform:uppercase}
+h1{font-size:27px;font-weight:800;letter-spacing:-.01em;margin:6px 0 8px}
+.lede{font-size:14.5px;color:var(--ink-soft);max-width:46ch}
+.yr{margin-top:28px}
+.yr h2{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.yr h2 .tag{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 9px;border-radius:999px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+a.card{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;transition:.15s;color:inherit}
+a.card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 18px rgba(23,40,58,.07)}
+a.card .sub{font-size:16px;font-weight:800}
+a.card .desc{font-size:12.5px;color:var(--ink-soft);margin-top:4px}
+a.card .go{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:10px;display:inline-block}
+.credit{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-soft);line-height:1.9}
+.log{margin-top:30px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.log h2{font-size:14px;font-weight:800;color:var(--ink);margin-bottom:10px}
+.log ul{list-style:none;padding:0;margin:0}
+.log li{font-size:12.5px;color:var(--ink-soft);line-height:1.85;padding-left:2px}
+.log li b{color:var(--accent);font-weight:700;margin-right:8px}
+.credit a{color:var(--accent);text-decoration:none;font-weight:600}
+.credit .small{font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">教師甄選 · 實用小工具</div>
+  <h1>教甄小工具</h1>
+  <p class="lede">依年度與科目整理的地圖、通勤距離與志願排序工具。點下方進入對應版本；所有操作都在你自己的瀏覽器裡完成。</p>
+
+  <!-- ===== 一個年度一個區塊。要加新科目，複製一張 <a class="card"> 即可 ===== -->
+  <section class="yr">
+    <h2>115 學年度 <span class="tag">臺北市立國中</span></h2>
+    <div class="grid">
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=國文">
+        <div class="sub">國文</div>
+        <div class="desc">缺 63 名・42 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=特殊教育身障">
+        <div class="sub">特教（身障）</div>
+        <div class="desc">缺 60 名・33 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=理化">
+        <div class="sub">理化</div>
+        <div class="desc">缺 56 名・38 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=數學">
+        <div class="sub">數學</div>
+        <div class="desc">缺 55 名・36 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=英語">
+        <div class="sub">英語</div>
+        <div class="desc">缺 48 名・37 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?subj=資訊科技">
+        <div class="sub">資訊科技</div>
+        <div class="desc">缺 23 名・21 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/Taipei/?g=other">
+        <div class="sub">其他科目（缺額 &lt;20 名）</div>
+        <div class="desc">公民、生科、輔導、家政、體育…等 13 科・進入後上方下拉選科目</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="yr">
+    <h2>115 學年度 <span class="tag">新北市立國中</span></h2>
+    <div class="grid">
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/Chinese/">
+        <div class="sub">國文</div>
+        <div class="desc">39 所開缺學校・地圖／通勤距離／志願排序</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- 之後要加新年度，複製整個 <section class="yr">，改成 116/… -->
+
+  <section class="log">
+    <h2>更新紀錄</h2>
+    <ul>
+      <!-- 要加新紀錄：複製一行 <li>，放到最上面，改日期與內容即可 -->
+      <li><b>2026/07/02</b>新增臺北市各科工具（19 科可切換），首頁改成各科卡片。</li>
+      <li><b>2026/07/01</b>上線新北市國文工具。</li>
+    </ul>
+  </section>
+
+  <footer class="credit">
+    製作：<a href="https://www.youtube.com/channel/UCltqZGFhSMw7h0wMFXiG0Ow" target="_blank" rel="noopener">小小黑開箱 ▸</a><br>
+    <span class="small">缺額與校名以官方甄選簡章為準。這些工具不會收集使用者的任何資料。</span>
+  </footer>
+</div>
+</body>
+</html>
