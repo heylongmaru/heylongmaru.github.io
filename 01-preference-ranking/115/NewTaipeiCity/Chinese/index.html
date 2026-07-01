@@ -92,6 +92,17 @@ tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:#f9fbfc}
 .searchbar{width:100%;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
 #distChips{display:flex;flex-wrap:wrap;gap:6px}
 .chip.dist-f{padding:5px 11px}
+.mapbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.pickmsg{font-size:12px;color:var(--accent);font-weight:600}
+#map.picking{cursor:crosshair}
+.advhint{font-size:12px;color:var(--ink-soft);line-height:1.6;margin:8px 0}
+.pickcard{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:14px 16px;flex-wrap:wrap}
+.pickcard-txt{display:flex;flex-direction:column;gap:2px}
+.pickcard-txt b{font-size:15px;color:var(--ink)}
+.pickcard-txt span{font-size:12.5px;color:var(--ink-soft)}
+.pickcard .btn{white-space:nowrap}
+.originnow{font-size:12.5px;color:var(--ink-soft);margin:10px 2px 0}
+.originnow.set{color:var(--accent);font-weight:600}
 .finehint{font-size:11.5px;color:var(--ink-soft);line-height:1.6;margin:-4px 2px 12px}
 .rankhelp{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .rankhelp .rh-title{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:11px;letter-spacing:.02em}
@@ -135,6 +146,7 @@ tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:#f9fbfc}
 
 <!-- ① MAP -->
 <section class="panel on" id="p-map">
+  <div class="mapbar"><button class="btn2" id="pickHome">📍 在地圖上點我家（設為出發點）</button><span class="pickmsg" id="pickMsg"></span></div>
   <div id="map"></div>
   <div class="maplegend" id="maplegend"></div>
   <div class="finehint" style="margin:8px 2px 0">地圖顏色是依區域分色、方便一眼看群聚，只是配色，不影響你用「實際區」篩選。</div>
@@ -144,13 +156,19 @@ tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:#f9fbfc}
 <section class="panel" id="p-dist">
   <div class="calc">
     <label>你的出發地</label>
-    <div class="row1">
-      <input id="addr" placeholder="輸入地址或地標，例如：新北市板橋區文化路一段23號" autocomplete="off">
-      <button class="btn" id="go">計算距離</button>
+    <div class="pickcard">
+      <div class="pickcard-txt"><b>在地圖上點你家最準 📍</b><span>免打地址、手機也順（門牌查詢常查不到）</span></div>
+      <button class="btn" id="pickHome2">去地圖點我家</button>
     </div>
-    <div id="msg">輸入地址後按「計算距離」；未輸入時，表格先依開缺數排序。</div>
-    <details><summary>地址找不到？改用座標（Google 地圖長按你家 → 複製那串數字）</summary>
-      <div class="adv"><input id="mlat" placeholder="緯度 25.08"><input id="mlng" placeholder="經度 121.38"><button class="btn2" id="mgo">用座標計算</button></div>
+    <div id="originNow" class="originnow">目前尚未設定出發點，表格先依開缺數排序。</div>
+    <details><summary>進階：改用地址或座標</summary>
+      <div class="advhint">地址用的是 OpenStreetMap，台灣門牌常查不到；查不到請改用上面的地圖點選。地標或路口比門牌容易找，或把 Google 地圖座標整串（如 25.08, 121.38）貼進來。</div>
+      <div class="row1">
+        <input id="addr" placeholder="地標／路口／座標，如 25.08, 121.38" autocomplete="off">
+        <button class="btn2" id="go">計算</button>
+      </div>
+      <div id="msg"></div>
+      <div class="adv"><input id="mlat" placeholder="貼上座標，如 25.08, 121.38"><input id="mlng" placeholder="經度（分兩格填才需要）"><button class="btn2" id="mgo">用座標計算</button></div>
     </details>
   </div>
   <div class="controls"><span class="cap">實際區</span><span id="distChips"></span></div>
@@ -238,7 +256,7 @@ function recompute(){ DATA.forEach(d=>{ if(origin){const s=hav(origin.lat,origin
 function mapsUrl(d){ const o=origin?"origin="+encodeURIComponent(origin.text)+"&":""; return "https://www.google.com/maps/dir/?api=1&"+o+"destination="+d.lat+","+d.lng+"&travelmode=driving"; }
 
 /* ---------- Tabs ---------- */
-let map=null, markers=[];
+let map=null, markers=[], homeMarker=null, picking=false;
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on")); t.classList.add("on");
   document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
@@ -252,8 +270,19 @@ function initMap(){
   map=L.map("map").setView([25.05,121.5],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(map);
   drawMarkers();
+  map.on("click",e=>{ if(!picking)return;
+    const la=e.latlng.lat, ln=e.latlng.lng;
+    setOrigin(la,ln,la.toFixed(5)+","+ln.toFixed(5));
+    picking=false; document.getElementById("map").classList.remove("picking");
+    document.getElementById("pickHome").textContent="📍 在地圖上點我家（設為出發點）";
+    document.getElementById("pickMsg").textContent="已設定出發點！切到「距離估算」看排序結果。";
+  });
+  if(origin) placeHome(origin.lat,origin.lng);
   const lg=document.getElementById("maplegend");
   lg.innerHTML=Object.entries(ZONECOLOR).map(([z,c])=>'<span><i class="dot" style="background:'+c+'"></i>'+z+'</span>').join("");
+}
+function placeHome(lat,lng){ if(!map)return; if(homeMarker)map.removeLayer(homeMarker);
+  homeMarker=L.circleMarker([lat,lng],{radius:9,fillColor:"#111827",color:"#fff",weight:3,fillOpacity:1}).addTo(map).bindPopup("你的出發點");
 }
 function drawMarkers(){
   markers.forEach(m=>map.removeLayer(m)); markers=[];
@@ -297,22 +326,47 @@ function renderTable(){
     if(th.dataset.sort===sortKey){th.classList.add("sorted");ar.textContent=sortDir===1?"↓":"↑";}else{th.classList.remove("sorted");ar.textContent="↕";}});
 }
 function setOrigin(lat,lng,text){origin={lat:+lat,lng:+lng,text:text};store.set(ORIGIN_KEY,origin);recompute();
-  sortKey="s";sortDir=1;renderTable();if(map)drawMarkers();renderRank();}
+  sortKey="s";sortDir=1;renderTable();if(map){drawMarkers();placeHome(origin.lat,origin.lng);}renderRank();updateOriginStatus();}
+function updateOriginStatus(){const el=document.getElementById("originNow");if(!el)return;
+  if(origin){el.className="originnow set";const isCoord=/^-?\d/.test(origin.text||"");el.textContent="✓ 已設定出發點："+(isCoord?"地圖／座標點選":origin.text)+"，表格已依距離排序。";}
+  else{el.className="originnow";el.textContent="目前尚未設定出發點，表格先依開缺數排序。";}}
 async function geocode(){
   const q=document.getElementById("addr").value.trim();const msg=document.getElementById("msg");
   if(!q){msg.className="err";msg.textContent="請先輸入地址。";return;}
+  const cm=q.match(/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]+\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if(cm){ let la=+cm[1],ln=+cm[2]; if(la>100&&ln<50){const t=la;la=ln;ln=t;}
+    if(la>=20&&la<=27&&ln>=118&&ln<=123){ setOrigin(la,ln,la+","+ln); msg.className="ok"; msg.textContent="已用座標定位：表格與地圖已更新。"; return; }
+  }
   const b=document.getElementById("go");b.disabled=true;msg.className="load";msg.textContent="定位中…";
   try{const u="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tw&accept-language=zh-TW&q="+encodeURIComponent(q);
     const j=await (await fetch(u,{headers:{Accept:"application/json"}})).json();
-    if(!j.length){msg.className="err";msg.textContent="找不到這個地址，試更完整寫法（含縣市區）或改用座標。";return;}
+    if(!j.length){msg.className="err";msg.textContent="找不到這個地址。試更完整寫法（含縣市區），或到「學校地圖」分頁直接點你家、或改用座標。";return;}
     setOrigin(j[0].lat,j[0].lon,q);msg.className="ok";msg.textContent="已定位：表格與地圖已依此出發點更新。";
-  }catch(e){msg.className="err";msg.textContent="定位服務連不上。若在預覽視窗，請先下載檔案用瀏覽器開啟；或改用座標。";}
+  }catch(e){msg.className="err";msg.textContent="定位服務連不上。若在預覽視窗，請先下載檔案用瀏覽器開啟；或改用座標／地圖點選。";}
   finally{b.disabled=false;}
 }
+document.getElementById("pickHome").addEventListener("click",()=>{
+  picking=!picking;
+  document.getElementById("map").classList.toggle("picking",picking);
+  document.getElementById("pickHome").textContent=picking?"👆 點地圖上你家的位置…（再按一次取消）":"📍 在地圖上點我家（設為出發點）";
+  document.getElementById("pickMsg").textContent=picking?"在地圖上輕點你家所在位置":"";
+});
+document.getElementById("pickHome2").addEventListener("click",()=>{
+  document.querySelector('.tab[data-p="map"]').click();
+  picking=true;
+  setTimeout(()=>{const m=document.getElementById("map");if(m)m.classList.add("picking");
+    document.getElementById("pickHome").textContent="👆 點地圖上你家的位置…（再按一次取消）";
+    document.getElementById("pickMsg").textContent="在地圖上輕點你家所在位置";
+    if(map)map.invalidateSize();},120);
+});
 document.getElementById("go").addEventListener("click",geocode);
 document.getElementById("addr").addEventListener("keydown",e=>{if(e.key==="Enter")geocode();});
-document.getElementById("mgo").addEventListener("click",()=>{const la=parseFloat(mlat.value),ln=parseFloat(mlng.value),msg=document.getElementById("msg");
-  if(isNaN(la)||isNaN(ln)){msg.className="err";msg.textContent="座標格式不對，例如 緯度 25.08、經度 121.38。";return;}
+document.getElementById("mgo").addEventListener("click",()=>{const msg=document.getElementById("msg");
+  let la,ln; const raw=mlat.value.trim();
+  const cm=raw.match(/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]+\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if(cm){la=+cm[1];ln=+cm[2];} else {la=parseFloat(mlat.value);ln=parseFloat(mlng.value);}
+  if(la>100&&ln<50){const t=la;la=ln;ln=t;}
+  if(isNaN(la)||isNaN(ln)){msg.className="err";msg.textContent="座標格式不對，例如貼上 25.08, 121.38，或分兩格填緯度、經度。";return;}
   setOrigin(la,ln,la+","+ln);msg.className="ok";msg.textContent="已用座標定位。";});
 document.querySelectorAll(".band-f").forEach(c=>c.addEventListener("click",()=>{
   document.querySelectorAll(".band-f").forEach(x=>x.classList.remove("on"));c.classList.add("on");bandFilter=c.dataset.band;renderTable();}));
@@ -430,7 +484,8 @@ document.getElementById("printBtn").addEventListener("click",()=>{
 
 /* init */
 recompute(); renderTable(); renderRank(); renderCand(); initMap();
-if(origin){document.getElementById("addr").value=origin.text!==origin.lat+","+origin.lng?origin.text:"";}
+if(origin && !/^-?\d/.test(origin.text||"")){document.getElementById("addr").value=origin.text;}
+updateOriginStatus();
 </script>
 </body>
 </html>
