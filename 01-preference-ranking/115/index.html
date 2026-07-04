@@ -89,9 +89,44 @@ a.card .go{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:10px;
   <section class="yr">
     <h2>115 學年度 <span class="tag">新北市立國中</span></h2>
     <div class="grid">
-      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/Chinese/">
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=國文">
         <div class="sub">國文</div>
-        <div class="desc">39 所開缺學校・地圖／通勤距離／志願排序</div>
+        <div class="desc">缺 71 名・39 校・地圖／通勤距離／志願排序</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=特教身障">
+        <div class="sub">特教身障</div>
+        <div class="desc">缺 50 名・38 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=數學">
+        <div class="sub">數學</div>
+        <div class="desc">缺 44 名・31 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=生活科技">
+        <div class="sub">生活科技</div>
+        <div class="desc">缺 29 名・24 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=專任輔導">
+        <div class="sub">專任輔導</div>
+        <div class="desc">缺 27 名・25 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=童軍">
+        <div class="sub">童軍</div>
+        <div class="desc">缺 22 名・21 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?only=英語">
+        <div class="sub">英語</div>
+        <div class="desc">缺 21 名・14 校</div>
+        <div class="go">開啟工具 ▸</div>
+      </a>
+      <a class="card" href="/01-preference-ranking/115/NewTaipeiCity/?g=other">
+        <div class="sub">其他科目（缺額 <20 名）</div>
+        <div class="desc">歷史、地理、公民、生物、理化、音樂、美術…等・進入後上方下拉選科目</div>
         <div class="go">開啟工具 ▸</div>
       </a>
     </div>
@@ -103,6 +138,7 @@ a.card .go{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:10px;
     <h2>更新紀錄</h2>
     <ul>
       <!-- 要加新紀錄：複製一行 <li>，放到最上面，改日期與內容即可 -->
+      <li><b>2026/07/04</b>新北市升級為各科工具（38 科可切換、76 校，座標以官方開放資料校準），首頁新北改成各科卡片。</li>
       <li><b>2026/07/02</b>新增臺北市各科工具（19 科可切換），首頁改成各科卡片。</li>
       <li><b>2026/07/01</b>上線新北市國文工具。</li>
     </ul>
@@ -112,12 +148,21 @@ a.card .go{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:10px;
     製作：<a href="https://www.youtube.com/channel/UCltqZGFhSMw7h0wMFXiG0Ow" target="_blank" rel="noopener">小小黑開箱 ▸</a><br>
     <span class="small">缺額與校名以官方甄選簡章為準。這些工具不會收集使用者的任何資料。</span>
     <div class="hits">
-      <span>瀏覽人次（今日／累計）</span>
-      <a href="https://hits.seeyoufarm.com" target="_blank" rel="noopener">
-        <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fheylongmaru.github.io%2F01-preference-ranking%2F115%2F&count_bg=%230F6E6E&title_bg=%23888888&title=visits&edge_flat=false" alt="瀏覽人次" loading="lazy">
-      </a>
+      <span>瀏覽人次：<b id="gc-count">—</b></span>
     </div>
+    <script>
+      (function(){try{
+        var r=new XMLHttpRequest();
+        r.addEventListener("load",function(){try{
+          var c=JSON.parse(this.responseText).count;
+          if(c) document.getElementById("gc-count").innerText=c;
+        }catch(e){}});
+        r.open("GET","https://heylongmaru.goatcounter.com/counter/TOTAL.json");
+        r.send();
+      }catch(e){}})();
+    </script>
   </footer>
 </div>
+<script data-goatcounter="https://heylongmaru.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
