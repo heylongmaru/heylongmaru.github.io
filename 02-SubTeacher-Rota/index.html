@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>代理導師輪替排班</title>
+<style>
+  :root{
+    --ink:#1f2a33; --text:#2a3340; --muted:#6b7683;
+    --line:#dbe1df; --paper:#eef1ef; --card:#ffffff;
+    --accent:#2c6e7f; --accent-soft:#e3eef0;
+    --ok:#2e7d5b; --ok-soft:#e2f0e9;
+    --warn:#b5761a; --warn-soft:#f6ecd9;
+    --danger:#b4453c; --danger-soft:#f4e0dd;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(31,42,51,.06),0 8px 24px rgba(31,42,51,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;
+    color:var(--text);background:var(--paper);line-height:1.6;
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;font-size:15px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:22px 16px 96px}
+  header.app{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    padding:6px 2px 16px;border-bottom:2px solid var(--ink);margin-bottom:14px}
+  header.app h1{font-size:22px;letter-spacing:.5px;margin:0;color:var(--ink);font-weight:800}
+  header.app .sub{color:var(--muted);font-size:13px}
+  #dirtyBar{margin-bottom:14px}
+  .dirty{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--warn-soft);border:1px solid #e6d3ad;color:#7a5410;
+    border-radius:var(--radius-sm);padding:10px 14px;font-size:14px;font-weight:600}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+  .tab{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:9px 15px;border-radius:999px;cursor:pointer;font-size:15px;font-weight:700;
+    transition:all .15s;font-family:inherit}
+  .tab:hover{border-color:var(--accent);color:var(--accent)}
+  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:16px;color:var(--ink);font-weight:800}
+  .card .hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  label.field{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted);font-weight:600}
+  input[type=text],input[type=date],input[type=number],input[type=month],select,textarea{
+    font-family:inherit;font-size:15px;color:var(--text);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:9px 11px;background:#fff;min-width:120px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  textarea{min-width:280px;min-height:120px;resize:vertical;line-height:1.5}
+  .big-date input{font-size:17px;font-weight:700;padding:11px 13px}
+  button.btn{font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;
+    border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 18px;
+    border-radius:var(--radius-sm);transition:all .15s}
+  button.btn:hover{opacity:.9}
+  button.btn.ghost{background:#fff;color:var(--ink)}
+  button.btn.accent{background:var(--accent);border-color:var(--accent)}
+  button.btn.ok{background:var(--ok);border-color:var(--ok)}
+  button.btn.warn{background:#fff;border-color:var(--warn);color:var(--warn)}
+  button.btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
+  button.btn.lg{font-size:17px;padding:13px 26px}
+  button.icon{border:1px solid var(--line);background:#fff;color:var(--muted);
+    border-radius:6px;cursor:pointer;padding:4px 9px;font-size:13px;font-family:inherit}
+  button.icon:hover{border-color:var(--accent);color:var(--accent)}
+  button.icon.danger:hover{border-color:var(--danger);color:var(--danger)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:12px;color:var(--muted);font-weight:700}
+  .tbl-scroll{overflow-x:auto}
+  .seq{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:13px;flex:none}
+  .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;
+    background:var(--paper);color:var(--muted);border:1px solid var(--line);margin:2px 3px 2px 0}
+  .chip.cls{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .badge{display:inline-block;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:700}
+  .badge.auto{background:var(--accent-soft);color:var(--accent)}
+  .badge.manual{background:var(--warn-soft);color:var(--warn)}
+  .badge.none{background:var(--danger-soft);color:var(--danger)}
+  .empty{color:var(--muted);font-size:14px;padding:12px 2px}
+  .divider{height:1px;background:var(--line);margin:16px 0}
+  .grade-group{border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:10px;overflow:hidden}
+  .grade-group>summary{cursor:pointer;list-style:none;padding:11px 14px;background:#f6f8f7;
+    font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .grade-group>summary::-webkit-details-marker{display:none}
+  .grade-group>summary .caret{transition:transform .15s;color:var(--muted)}
+  .grade-group[open]>summary .caret{transform:rotate(90deg)}
+  .grade-body{padding:12px 14px}
+  .cls-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .cls-pick{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);
+    border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:700;color:var(--ink);
+    background:#fff;user-select:none;transition:all .12s}
+  .cls-pick:hover{border-color:var(--accent)}
+  .cls-pick.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .cls-pick .ord{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+    border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:800;padding:0 4px}
+  .result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .res-card{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:#fff}
+  .res-card .cls{font-size:13px;color:var(--muted);font-weight:700}
+  .res-card .who{font-size:24px;font-weight:800;color:var(--ink);margin:2px 0 6px}
+  .res-card.none .who{color:var(--danger);font-size:18px}
+  .res-more{margin-top:8px}
+  .res-more summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;list-style:none}
+  .res-more summary::-webkit-details-marker{display:none}
+  .queue{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+  .q-item{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;
+    padding:4px 10px 4px 5px;font-size:13px;background:#fff}
+  .q-item .seq{width:22px;height:22px;font-size:12px}
+  .q-item.next{border-color:var(--ok);background:var(--ok-soft)}
+  .q-item.next .seq{background:var(--ok);color:#fff}
+  .q-cnt{color:var(--muted);font-size:12px}
+  .kpi{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:10px}
+  .kpi div b{display:block;font-size:22px;color:var(--ink)}
+  .kpi div span{font-size:12px;color:var(--muted)}
+  .inline-warn{color:var(--danger);font-size:12px;font-weight:600;margin-top:4px}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:11px 20px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:var(--shadow);
+    opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+  .help details summary{cursor:pointer;color:var(--accent);font-weight:700;font-size:14px}
+  .help p,.help li{font-size:13px;color:var(--muted)}
+  .switch{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--muted);font-weight:600;cursor:pointer}
+  @media print{.tabs,.no-print,#dirtyBar,header.app .sub{display:none!important}
+    body{background:#fff}.card{box-shadow:none;border-color:#ccc}}
+  @media (max-width:560px){header.app h1{font-size:19px}.res-card .who{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <h1>代理導師輪替排班</h1>
+    <span class="sub">照序號公平輪替．自動記錄．萬年曆選日期</span>
+    <a href="guide.html" target="_blank" rel="noopener"
+       style="margin-left:auto;font-size:14px;font-weight:700;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:6px 14px;white-space:nowrap">📖 操作小抄／說明</a>
+  </header>
+  <div id="dirtyBar"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="view"></main>
+  <div class="help" style="margin-top:24px;color:var(--muted);font-size:12px;text-align:center">
+    資料只存在這台電腦的瀏覽器。換電腦、清快取前，請到「備份與重置」匯出。
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   代理導師輪替排班　v2
+   規則（公平輪替，同班內）：
+   1. 全體參與者開學一起抽序號（seq）；導師不抽、不在名單。
+   2. 某班要代理 → 候選＝該班「任課老師」，照序號小到大。
+   3. 從候選中挑「此班已代理次數最少」者；同次數序號小的先。
+   4. 輪到者當天請假、或當天已代理他班 → 跳過換下一位；
+      請假／被佔用不算他輪過，次數不變，下次仍優先。
+   5. 各班獨立計次。6. 同日多班依「需求順序」逐班排，一人一天最多一班。
+   次數＝「學年分界日」之後的記錄數＋起始次數(startOffset)。
+   ============================================================ */
+
+const KEY='dutyRotator.v2';
+const mem={};
+const store={
+  read(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null}catch(e){return mem[KEY]||null}},
+  write(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){mem[KEY]=JSON.parse(JSON.stringify(o))}}
+};
+
+let state=migrate(store.read())||seed();
+let dirty=false;
+function save(){store.write(state);dirty=true;renderDirty()}
+function saveClean(){store.write(state);dirty=false;renderDirty()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+function seed(){
+  const classes=[
+    {id:'c1',name:'一班',grade:''},{id:'c2',name:'二班',grade:''},{id:'c3',name:'三班',grade:''},
+    {id:'c4',name:'四班',grade:''},{id:'c5',name:'五班',grade:''},{id:'c6',name:'六班',grade:''},
+  ];
+  const teachers=[
+    {id:'t1',name:'老師一',seq:1,classes:['c1','c2','c3'],startOffset:{}},
+    {id:'t2',name:'老師二',seq:2,classes:['c1','c2','c3'],startOffset:{}},
+    {id:'t3',name:'老師三',seq:3,classes:['c1','c2','c3'],startOffset:{}},
+    {id:'t4',name:'老師四',seq:4,classes:['c2'],startOffset:{}},
+    {id:'t5',name:'老師五',seq:5,classes:['c3'],startOffset:{}},
+    {id:'t6',name:'老師六',seq:6,classes:['c2','c3'],startOffset:{}},
+  ];
+  return {classes,teachers,leaves:[],assignments:[],meta:{seasonStart:null,lastBatch:null}};
+}
+function migrate(s){ // 相容舊版 v1
+  if(!s) return null;
+  s.classes=(s.classes||[]).map(c=>({id:c.id,name:c.name,grade:c.grade||''}));
+  s.teachers=(s.teachers||[]).map(t=>({id:t.id,name:t.name,seq:t.seq,classes:t.classes||[],startOffset:t.startOffset||{}}));
+  s.leaves=s.leaves||[]; s.assignments=s.assignments||[];
+  s.meta=s.meta||{seasonStart:null,lastBatch:null};
+  return s;
+}
+
+/* ---------- 小工具 ---------- */
+const $=(s,e=document)=>e.querySelector(s);
+const el=(tag,props={},...kids)=>{
+  const n=document.createElement(tag);
+  for(const k in props){
+    if(k==='class')n.className=props[k];
+    else if(k==='html')n.innerHTML=props[k];
+    else if(k.startsWith('on'))n.addEventListener(k.slice(2),props[k]);
+    else if(k==='value')n.value=props[k];
+    else if(k==='checked')n.checked=props[k];
+    else n.setAttribute(k,props[k]);
+  }
+  kids.flat().forEach(c=>n.append(c==null?'':c.nodeType?c:document.createTextNode(c)));
+  return n;
+};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
+function pad(n){return String(n).padStart(2,'0')}
+function today(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function ymd(d){return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`}
+function className(id){const c=state.classes.find(c=>c.id===id);return c?c.name:'（已刪除班級）'}
+function classGrade(id){const c=state.classes.find(c=>c.id===id);return c?c.grade:''}
+function teacher(id){return state.teachers.find(t=>t.id===id)}
+function teacherName(id){const t=teacher(id);return t?t.name:'（已刪除老師）'}
+
+const GRADES=[['7','七年級'],['8','八年級'],['9','九年級'],['','未分年級']];
+function gradeLabel(g){const f=GRADES.find(x=>x[0]===g);return f?f[1]:'未分年級'}
+function classesByGrade(){
+  return GRADES.map(([g,label])=>({g,label,items:state.classes.filter(c=>(c.grade||'')===g)}))
+    .filter(grp=>grp.items.length);
+}
+
+/* ---------- 輪替核心 ---------- */
+function eligible(classId){
+  return state.teachers.filter(t=>t.classes.includes(classId))
+    .sort((a,b)=>(a.seq-b.seq)||a.name.localeCompare(b.name,'zh-Hant'));
+}
+function serveCount(classId,teacherId){
+  const start=state.meta.seasonStart;
+  const base=(teacher(teacherId)?.startOffset?.[classId])||0;
+  const n=state.assignments.filter(a=>a.classId===classId&&a.teacherId===teacherId&&(!start||a.date>=start)).length;
+  return base+n;
+}
+function lastServed(teacherId){
+  const ds=state.assignments.filter(a=>a.teacherId===teacherId).map(a=>a.date).sort();
+  return ds.length?ds[ds.length-1]:null;
+}
+function onLeave(teacherId,date){return state.leaves.some(l=>l.teacherId===teacherId&&l.date===date)}
+
+function suggest(classId,date,usedToday){
+  const cands=eligible(classId);
+  if(!cands.length)return{teacherId:null,reason:'尚未設定此班的任課老師',skipped:[]};
+  const skipped=[];
+  const pool=cands.filter(t=>{
+    if(onLeave(t.id,date)){skipped.push({id:t.id,why:'今日請假'});return false}
+    if(usedToday.has(t.id)){skipped.push({id:t.id,why:'今日已代理他班'});return false}
+    return true;
+  });
+  if(!pool.length)return{teacherId:null,reason:'可用的任課老師都已請假或已排他班',skipped};
+  pool.sort((a,b)=>(serveCount(classId,a.id)-serveCount(classId,b.id))||(a.seq-b.seq));
+  return{teacherId:pool[0].id,reason:null,skipped};
+}
+function roundInfo(classId){
+  const elig=eligible(classId);
+  if(!elig.length)return null;
+  const counts=elig.map(t=>serveCount(classId,t.id));
+  const min=Math.min(...counts);
+  return{round:min+1,remaining:counts.filter(c=>c===min).length,size:elig.length};
+}
+
+/* ============================================================
+   分頁與渲染
+   ============================================================ */
+const TABS=[['daily','排代理'],['setup','老師與班級'],['leave','請假'],['records','記錄統計'],['backup','備份與重置']];
+let active='daily';
+let dailyState=null;
+
+function renderDirty(){
+  const b=$('#dirtyBar');b.innerHTML='';
+  if(dirty){
+    b.append(el('div',{class:'dirty'},'有變更尚未備份。建議每次修改後下載一份保存。',
+      el('button',{class:'btn warn sm',style:'font-size:14px;padding:6px 12px',onclick:exportJSON},'立即下載備份')));
+  }
+}
+function renderTabs(){
+  const nav=$('#tabs');nav.innerHTML='';
+  TABS.forEach(([id,label])=>nav.append(el('button',{class:'tab'+(active===id?' active':''),onclick:()=>{active=id;render()}},label)));
+}
+function render(){
+  renderTabs();renderDirty();
+  const v=$('#view');v.innerHTML='';
+  ({daily:viewDaily,setup:viewSetup,leave:viewLeave,records:viewRecords,backup:viewBackup}[active])(v);
+}
+
+/* ---------- 排代理 ---------- */
+function viewDaily(root){
+  const help=el('div',{class:'card help'});
+  help.append(el('details',{},
+    el('summary',{},'怎麼用？（點開看三步驟）'),
+    el('div',{style:'margin-top:8px'},
+      el('p',{},'① 選好日期（預設今天）。'),
+      el('p',{},'② 點一下今天要代理的班級（可點多班，會自動標順序）。'),
+      el('p',{},'③ 按「排代理」，看誰輪到；需要換人就用「換人」；沒問題按「確認並記錄」。'))));
+  root.append(help);
+
+  const wrap=el('div',{class:'card'});
+  wrap.append(el('h2',{},'排代理'));
+
+  const dateInput=el('input',{type:'date',value:(dailyState?.date)||today()});
+  wrap.append(el('div',{class:'row'},el('label',{class:'field big-date'},'日期',dateInput)));
+  wrap.append(el('div',{class:'divider'}));
+
+  if(!state.classes.length){
+    wrap.append(el('p',{class:'empty'},'還沒有班級。請先到「老師與班級」新增。'));
+    root.append(wrap);return;
+  }
+
+  dailyState=dailyState||{date:dateInput.value,order:[],results:null,preview:false};
+  dailyState.date=dateInput.value;
+  dateInput.addEventListener('change',()=>{dailyState.date=dateInput.value;dailyState.results=null;render()});
+  // 清掉已刪除／不存在的班級殘影，避免順序編號跳號
+  dailyState.order=dailyState.order.filter(id=>state.classes.some(c=>c.id===id));
+
+  // 今日已排定（分次排時的現況；請假若取消可直接移除）
+  const doneToday=state.assignments.filter(a=>a.date===dailyState.date)
+    .sort((a,b)=>a.createdAt-b.createdAt);
+  if(doneToday.length){
+    const panel=el('div',{style:'background:var(--ok-soft);border:1px solid #bcdcc9;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px'});
+    panel.append(el('div',{style:'font-weight:700;color:var(--ok);margin-bottom:8px'},'今天已排定'));
+    const chips=el('div',{style:'display:flex;flex-wrap:wrap;gap:8px'});
+    doneToday.forEach(a=>{
+      chips.append(el('span',{class:'chip',style:'margin:0;background:#fff;font-size:13px;font-weight:600'},
+        `${className(a.classId)} → ${teacherName(a.teacherId)}`,
+        el('button',{class:'icon danger',style:'margin-left:6px;padding:0 6px',title:'移除這筆（例如老師沒請假了）',onclick:()=>{
+          if(!confirm(`移除「${className(a.classId)} → ${teacherName(a.teacherId)}」？`))return;
+          state.assignments=state.assignments.filter(x=>x.id!==a.id);save();render();
+        }},'×')));
+    });
+    panel.append(chips);
+    wrap.append(panel);
+  }
+
+  wrap.append(el('div',{style:'font-weight:700;color:var(--ink);margin-bottom:10px'},'今天要幫哪些班找代理？（可多選）'));
+
+  classesByGrade().forEach(grp=>{
+    const body=el('div',{class:'grade-body'});
+    const grid=el('div',{class:'cls-grid'});
+    grp.items.forEach(c=>{
+      const on=dailyState.order.includes(c.id);
+      const idx=dailyState.order.indexOf(c.id);
+      const already=state.assignments.find(a=>a.date===dailyState.date&&a.classId===c.id);
+      const pick=el('div',{class:'cls-pick'+(on?' on':''),onclick:()=>{
+        if(dailyState.order.includes(c.id))dailyState.order=dailyState.order.filter(x=>x!==c.id);
+        else dailyState.order.push(c.id);
+        dailyState.results=null;render();
+      }},
+        on?el('span',{class:'ord'},String(idx+1)):'',
+        c.name,
+        already?el('span',{class:'chip',style:'margin:0'},'已排'):'' );
+      grid.append(pick);
+    });
+    body.append(grid);
+    wrap.append(el('details',{class:'grade-group',open:'true'},
+      el('summary',{},el('span',{class:'caret'},'▸'),grp.label,
+        el('span',{style:'font-weight:600;color:var(--muted);font-size:13px'},`（${grp.items.length} 班）`)),
+      body));
+  });
+
+  // 集中顯示本次選到的所有班（跨年級一起、編號連續），可調順序或移除
+  if(dailyState.order.length){
+    const strip=el('div',{style:'margin-top:14px;padding:12px 14px;background:var(--accent-soft);border-radius:8px'});
+    strip.append(el('div',{style:'font-weight:700;color:var(--accent);margin-bottom:8px'},
+      `本次要排的班（先排的先鎖定人選，共 ${dailyState.order.length} 班）`));
+    const line=el('div',{style:'display:flex;flex-wrap:wrap;gap:8px;align-items:center'});
+    dailyState.order.forEach((cid,i)=>{
+      line.append(el('span',{class:'chip',style:'margin:0;background:#fff;font-weight:700'},
+        `${i+1}. ${className(cid)}`,
+        el('button',{class:'icon',style:'margin-left:4px;padding:1px 5px',title:'上移',onclick:()=>{if(i>0){const o=dailyState.order;[o[i-1],o[i]]=[o[i],o[i-1]];dailyState.results=null;render()}}},'↑'),
+        el('button',{class:'icon',style:'padding:1px 5px',title:'下移',onclick:()=>{const o=dailyState.order;if(i<o.length-1){[o[i+1],o[i]]=[o[i],o[i+1]];dailyState.results=null;render()}}},'↓'),
+        el('button',{class:'icon danger',style:'padding:1px 5px',title:'移除',onclick:()=>{dailyState.order=dailyState.order.filter(x=>x!==cid);dailyState.results=null;render()}},'×')));
+    });
+    strip.append(line);
+    wrap.append(strip);
+  }
+
+  const prevCb=el('input',{type:'checkbox',checked:!!dailyState.preview,onchange:()=>{dailyState.preview=prevCb.checked}});
+  wrap.append(el('div',{class:'row',style:'margin-top:16px;align-items:center'},
+    el('button',{class:'btn accent lg',onclick:()=>{
+      if(!dailyState.order.length){toast('請先點選要代理的班級');return}
+      const used=new Set();
+      // 讀入當天已排在「其他班（不在本次清單）」的老師，避免同日撞人
+      state.assignments.filter(a=>a.date===dailyState.date&&!dailyState.order.includes(a.classId))
+        .forEach(a=>used.add(a.teacherId));
+      const results=[];
+      dailyState.order.forEach(cid=>{
+        const r=suggest(cid,dailyState.date,used);
+        if(r.teacherId)used.add(r.teacherId);
+        results.push({classId:cid,teacherId:r.teacherId,reason:r.reason,skipped:r.skipped,manual:false,note:'',absent:''});
+      });
+      dailyState.results=results;render();
+    }},'排代理'),
+    el('label',{class:'switch'},prevCb,'只試排，先不記錄')));
+
+  root.append(wrap);
+  if(dailyState.results)root.append(renderDailyResults());
+}
+
+function renderDailyResults(){
+  const card=el('div',{class:'card'});
+  card.append(el('h2',{},'結果（'+dailyState.date+'）'+(dailyState.preview?'　試排':'')));
+  card.append(el('p',{class:'hint'},'要換人就用每張卡片的「換人」；改過會標「手動」。'+(dailyState.preview?'目前是試排，不會寫入。':'確認無誤後按最下方「確認並記錄」。')));
+
+  const grid=el('div',{class:'result-grid'});
+  const dayOther=state.assignments.filter(a=>a.date===dailyState.date&&!dailyState.order.includes(a.classId));
+  dailyState.results.forEach((r,i)=>{
+    const rc=el('div',{class:'res-card'+(r.teacherId?'':' none')});
+    rc.append(el('div',{class:'cls'},(classGrade(r.classId)?gradeLabel(classGrade(r.classId))+'．':'')+className(r.classId)));
+    rc.append(el('div',{class:'who'}, r.teacherId?teacherName(r.teacherId):(r.reason?'無人可排':'未指定')));
+    rc.append(r.teacherId
+      ? el('span',{class:'badge '+(r.manual?'manual':'auto')},r.manual?'手動':'自動輪到')
+      : el('span',{class:'badge none'},'請改用「換人」手動指定'));
+
+    // 手動撞人警告
+    if(r.teacherId){
+      const t=teacher(r.teacherId),w=[];
+      if(!t||!t.classes.includes(r.classId))w.push('非本班任課');
+      if(onLeave(r.teacherId,dailyState.date))w.push('此人今日請假');
+      if(dailyState.results.some((o,j)=>j!==i&&o.teacherId===r.teacherId))w.push('與本批其他班撞同一人');
+      const clash=dayOther.find(a=>a.teacherId===r.teacherId);
+      if(clash)w.push(`與今天已排的「${className(clash.classId)}」撞同一人`);
+      if(w.length)rc.append(el('div',{class:'inline-warn'},'⚠ '+w.join('、')));
+    }
+
+    const opts=[el('option',{value:''},'—（不排）—')];
+    eligible(r.classId).forEach(t=>opts.push(el('option',{value:t.id},`${t.seq}．${t.name}（已代理 ${serveCount(r.classId,t.id)} 次）`)));
+    const sel=el('select',{style:'width:100%',onchange:()=>{r.teacherId=sel.value||null;r.manual=true;render()}},opts);
+    sel.value=r.teacherId||'';
+
+    const more=el('details',{class:'res-more'},
+      el('summary',{},'換人 / 更多'),
+      el('div',{style:'margin-top:8px;display:flex;flex-direction:column;gap:8px'},
+        el('label',{class:'field'},'指定代理老師',sel),
+        el('label',{class:'field'},'缺席者（選填）',el('input',{type:'text',value:r.absent||'',placeholder:'誰不在',oninput:e=>r.absent=e.target.value})),
+        el('label',{class:'field'},'原因／備註（選填）',el('input',{type:'text',value:r.note||'',placeholder:'例：公假',oninput:e=>r.note=e.target.value})),
+        (r.skipped&&r.skipped.length)?el('div',{style:'font-size:12px;color:var(--muted)'},'被跳過：'+r.skipped.map(s=>`${teacherName(s.id)}（${s.why}）`).join('、')):''
+      ));
+    rc.append(more);
+    grid.append(rc);
+  });
+  card.append(grid);
+
+  const bar=el('div',{class:'row no-print',style:'margin-top:18px'});
+  if(!dailyState.preview)bar.append(el('button',{class:'btn ok lg',onclick:commitDaily},'確認並記錄'));
+  bar.append(el('button',{class:'btn ghost',onclick:()=>window.print()},'列印'));
+  bar.append(el('button',{class:'btn ghost',onclick:()=>{dailyState.results=null;render()}},'重排'));
+  card.append(bar);
+  return card;
+}
+
+function commitDaily(){
+  const date=dailyState.date;
+  const cids=dailyState.results.map(r=>r.classId);
+  // 寫入前把關：是否與「今天已排、且不在本批」的班撞同一人（同日代理兩班）
+  const dayOther=state.assignments.filter(a=>a.date===date&&!cids.includes(a.classId));
+  const clashes=[];
+  dailyState.results.forEach(r=>{
+    if(!r.teacherId)return;
+    const c=dayOther.find(a=>a.teacherId===r.teacherId);
+    if(c)clashes.push(`${teacherName(r.teacherId)}：今天已代理「${className(c.classId)}」，又要代理「${className(r.classId)}」`);
+  });
+  if(clashes.length){
+    if(!confirm('有老師同一天會代理兩班：\n\n'+clashes.join('\n')+'\n\n仍要這樣寫入嗎？'))return;
+  }
+  state.assignments=state.assignments.filter(a=>!(a.date===date&&cids.includes(a.classId)));
+  const batch=[];let n=0;
+  dailyState.results.forEach(r=>{
+    if(!r.teacherId)return;
+    const id=uid();
+    state.assignments.push({id,date,classId:r.classId,teacherId:r.teacherId,manual:!!r.manual,note:r.note||'',absent:r.absent||'',createdAt:Date.now()});
+    batch.push(id);n++;
+  });
+  state.meta.lastBatch=batch;
+  save();toast(`已記錄 ${n} 筆`);dailyState.results=null;render();
+}
+
+/* ---------- 老師與班級 ---------- */
+function viewSetup(root){
+  // 班級
+  const cCard=el('div',{class:'card'});
+  cCard.append(el('h2',{},'班級'));
+  cCard.append(el('p',{class:'hint'},'選年級再新增班級。班級數每年不固定沒關係，隨時可加可刪。'));
+  const cName=el('input',{type:'text',placeholder:'班級名稱，例：701'});
+  const cGrade=el('select',{},...GRADES.map(([g,l])=>el('option',{value:g},l)));
+  cCard.append(el('div',{class:'row'},
+    el('label',{class:'field'},'年級',cGrade),
+    el('label',{class:'field'},'班級名稱',cName),
+    el('button',{class:'btn',onclick:()=>{
+      if(!cName.value.trim()){toast('請輸入班級名稱');return}
+      state.classes.push({id:uid(),name:cName.value.trim(),grade:cGrade.value});save();render();
+    }},'新增班級')));
+  cCard.append(el('div',{class:'row',style:'margin-top:10px'},
+    el('button',{class:'btn ghost',onclick:()=>{
+      const map={'7':'7','8':'8','9':'9'};
+      const changes=[],unmatched=[];
+      state.classes.forEach(c=>{
+        const m=String(c.name).match(/\d/);
+        const g=m?map[m[0]]:null;
+        if(g){if(c.grade!==g)changes.push([c,g])}else unmatched.push(c.name);
+      });
+      if(!changes.length){toast('沒有需要調整的班級'+(unmatched.length?`（${unmatched.length} 班無法判斷）`:''));return}
+      if(!confirm(`將依班名把 ${changes.length} 班分到七／八／九年級（7→七、8→八、9→九）。`
+        +(unmatched.length?`\n\n無法判斷、維持原樣：${unmatched.join('、')}`:'')
+        +'\n\n要套用嗎？'))return;
+      changes.forEach(([c,g])=>c.grade=g);save();render();toast(`已分好 ${changes.length} 班`);
+    }},'依班名自動分年級'),
+    el('span',{style:'font-size:12px;color:var(--muted);align-self:center'},'班名開頭 7／8／9 → 七／八／九年級，判斷不出的維持原樣')));
+
+  classesByGrade().forEach(grp=>{
+    const t=el('table');
+    t.append(el('thead',{},el('tr',{},el('th',{},'班級'),el('th',{},'任課老師（依序號）'),el('th',{},''))));
+    const tb=el('tbody');
+    grp.items.forEach(c=>{
+      const elig=eligible(c.id);
+      tb.append(el('tr',{},
+        el('td',{},el('input',{type:'text',value:c.name,style:'min-width:90px',onchange:e=>{c.name=e.target.value.trim();save()}})),
+        el('td',{},elig.length?elig.map(t=>el('span',{class:'chip'},`${t.seq}．${t.name}`)):el('span',{class:'empty'},'—')),
+        el('td',{},el('button',{class:'icon danger',onclick:()=>{
+          if(!confirm(`刪除「${c.name}」？記錄會保留但顯示為已刪除。`))return;
+          state.classes=state.classes.filter(x=>x.id!==c.id);
+          state.teachers.forEach(t=>t.classes=t.classes.filter(x=>x!==c.id));save();render();
+        }},'刪除'))));
+    });
+    t.append(tb);
+    cCard.append(el('details',{class:'grade-group',open:'true'},
+      el('summary',{},el('span',{class:'caret'},'▸'),grp.label,
+        el('span',{style:'font-weight:600;color:var(--muted);font-size:13px'},`（${grp.items.length} 班）`)),
+      el('div',{class:'grade-body tbl-scroll'},t)));
+  });
+  root.append(cCard);
+
+  // 老師
+  const tCard=el('div',{class:'card'});
+  tCard.append(el('h2',{},'老師與序號'));
+  tCard.append(el('p',{class:'hint'},'「序號」＝開學抽到的號碼，決定輪替先後。勾選這位老師任課哪些班。導師不抽序號、不用建。'));
+
+  // 序號重複警告
+  const seqMap={};state.teachers.forEach(t=>{(seqMap[t.seq]=seqMap[t.seq]||[]).push(t.name)});
+  const dups=Object.entries(seqMap).filter(([s,arr])=>arr.length>1);
+  if(dups.length)tCard.append(el('div',{class:'dirty',style:'margin-bottom:14px'},
+    '⚠ 有重複序號：'+dups.map(([s,arr])=>`${s} 號（${arr.join('、')}）`).join('；')+'。輪替順序可能會亂，請調整。'));
+
+  const tName=el('input',{type:'text',placeholder:'老師姓名'});
+  const tSeq=el('input',{type:'number',placeholder:'序號',min:'1',style:'min-width:80px'});
+  tCard.append(el('div',{class:'row'},
+    el('label',{class:'field'},'姓名',tName),
+    el('label',{class:'field'},'序號',tSeq),
+    el('button',{class:'btn',onclick:()=>{
+      if(!tName.value.trim()){toast('請輸入姓名');return}
+      const seq=parseInt(tSeq.value,10);if(!seq){toast('請輸入序號');return}
+      state.teachers.push({id:uid(),name:tName.value.trim(),seq,classes:[],startOffset:{}});
+      save();render();
+    }},'新增老師')));
+  tCard.append(el('p',{style:'font-size:12px;color:var(--muted);margin:8px 0 0'},
+    '學期中才加入的老師：先勾好任課班級，再按該列的「比照最低」，起始次數會對齊各班目前最低，避免他一直被排到。'));
+
+  if(state.teachers.length){
+    const t=el('table');
+    t.append(el('thead',{},el('tr',{},el('th',{},'序號'),el('th',{},'姓名'),el('th',{},'任課班級（勾選）'),el('th',{},''))));
+    const tb=el('tbody');
+    [...state.teachers].sort((a,b)=>a.seq-b.seq).forEach(tr=>{
+      const boxes=el('div',{});
+      classesByGrade().forEach(grp=>{
+        const line=el('div',{style:'margin-bottom:4px'});
+        line.append(el('span',{style:'font-size:12px;color:var(--muted);margin-right:6px'},grp.label+'：'));
+        grp.items.forEach(c=>{
+          const cb=el('input',{type:'checkbox',checked:tr.classes.includes(c.id),style:'margin-right:3px',
+            onchange:()=>{if(cb.checked){if(!tr.classes.includes(c.id))tr.classes.push(c.id)}else tr.classes=tr.classes.filter(x=>x!==c.id);save()}});
+          line.append(el('label',{class:'chip',style:'cursor:pointer;display:inline-flex;align-items:center;gap:2px'},cb,c.name));
+        });
+        boxes.append(line);
+      });
+      tb.append(el('tr',{},
+        el('td',{},el('span',{class:'seq'},String(tr.seq)),
+          el('div',{},el('input',{type:'number',value:tr.seq,min:'1',style:'width:60px;margin-top:4px',
+            onchange:e=>{tr.seq=parseInt(e.target.value,10)||tr.seq;save();render()}}))),
+        el('td',{},el('input',{type:'text',value:tr.name,style:'min-width:90px',onchange:e=>{tr.name=e.target.value.trim();save()}})),
+        el('td',{},state.classes.length?boxes:el('span',{class:'empty'},'請先新增班級')),
+        el('td',{},
+          el('button',{class:'icon',title:'把此人各任課班的起始次數設為該班目前最低（其他老師）',onclick:()=>{
+            if(!tr.classes.length){toast('請先勾選任課班級');return}
+            tr.startOffset=tr.startOffset||{};
+            tr.classes.forEach(cid=>{
+              const others=eligible(cid).filter(x=>x.id!==tr.id);
+              const min=others.length?Math.min(...others.map(x=>serveCount(cid,x.id))):0;
+              tr.startOffset[cid]=Math.max(0,min-(state.assignments.filter(a=>a.classId===cid&&a.teacherId===tr.id&&(!state.meta.seasonStart||a.date>=state.meta.seasonStart)).length));
+            });
+            save();toast('已比照最低');render();
+          }},'比照最低'),
+          el('button',{class:'icon danger',style:'margin-left:4px',onclick:()=>{
+            if(!confirm(`刪除「${tr.name}」？記錄會保留。`))return;
+            state.teachers=state.teachers.filter(x=>x.id!==tr.id);save();render();
+          }},'刪除'))));
+    });
+    t.append(tb);tCard.append(el('div',{class:'tbl-scroll'},t));
+  }
+  root.append(tCard);
+
+  // 批次匯入
+  const iCard=el('div',{class:'card'});
+  iCard.append(el('h2',{},'批次匯入老師（貼上名單）'));
+  iCard.append(el('p',{class:'hint'},'一行一位老師，用逗號或 Tab 分隔「姓名、序號、班級」；多個班級之間用空格或逗號。找不到的班級會自動幫你建立（年級待補）。'));
+  iCard.append(el('p',{style:'font-size:13px;color:var(--muted);margin:0 0 8px'},'例：　王小明, 1, 701 702'));
+  const ta=el('textarea',{placeholder:'王小明, 1, 701 702\n李小美, 2, 701 703'});
+  const prev=el('div',{style:'margin-top:10px'});
+  iCard.append(ta);
+  iCard.append(el('div',{class:'row',style:'margin-top:10px'},
+    el('button',{class:'btn ghost',onclick:()=>{prev.innerHTML='';prev.append(renderImportPreview(ta.value))}},'預覽'),
+  ));
+  iCard.append(prev);
+  root.append(iCard);
+
+  // 把「起始次數比照最低」的旗標交給新增按鈕用
+  window._baseFlag=()=>tBase.checked;
+}
+
+function parseTeacherRows(text){
+  return text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(line=>{
+    let parts=line.split(/\t/);if(parts.length<2)parts=line.split(/,|，/);
+    const name=(parts[0]||'').trim();
+    const seq=parseInt((parts[1]||'').trim(),10);
+    const clsRaw=parts.slice(2).join(' ').trim();
+    const classNames=clsRaw?clsRaw.split(/[\s,，、]+/).filter(Boolean):[];
+    return{name,seq:isNaN(seq)?null:seq,classNames};
+  });
+}
+function renderImportPreview(text){
+  const rows=parseTeacherRows(text);
+  const box=el('div',{});
+  if(!rows.length){box.append(el('p',{class:'empty'},'沒有可匯入的內容。'));return box}
+  const existNames=new Set(state.classes.map(c=>c.name));
+  const toCreate=new Set();
+  rows.forEach(r=>r.classNames.forEach(n=>{if(!existNames.has(n))toCreate.add(n)}));
+  const t=el('table');
+  t.append(el('thead',{},el('tr',{},el('th',{},'姓名'),el('th',{},'序號'),el('th',{},'任課班級'),el('th',{},'狀態'))));
+  const tb=el('tbody');
+  rows.forEach(r=>{
+    const bad=!r.name||!r.seq;
+    tb.append(el('tr',{},
+      el('td',{},r.name||'（缺姓名）'),
+      el('td',{},r.seq?String(r.seq):'（缺序號）'),
+      el('td',{},r.classNames.join('、')||'—'),
+      el('td',{},bad?el('span',{class:'badge none'},'資料不全'):el('span',{class:'badge auto'},'可匯入'))));
+  });
+  t.append(tb);box.append(el('div',{class:'tbl-scroll'},t));
+  if(toCreate.size)box.append(el('p',{style:'font-size:13px;color:var(--warn);margin-top:8px'},'將自動建立這些班級：'+[...toCreate].join('、')));
+  box.append(el('button',{class:'btn accent',style:'margin-top:10px',onclick:()=>applyImport(rows)},`確認匯入 ${rows.filter(r=>r.name&&r.seq).length} 位老師`));
+  return box;
+}
+function applyImport(rows){
+  const nameToId=new Map(state.classes.map(c=>[c.name,c.id]));
+  rows.forEach(r=>{
+    if(!r.name||!r.seq)return;
+    const cids=r.classNames.map(n=>{
+      if(nameToId.has(n))return nameToId.get(n);
+      const id=uid();state.classes.push({id,name:n,grade:''});nameToId.set(n,id);return id;
+    });
+    state.teachers.push({id:uid(),name:r.name,seq:r.seq,classes:cids,startOffset:{}});
+  });
+  save();toast('匯入完成');render();
+}
+
+/* ---------- 請假 ---------- */
+function viewLeave(root){
+  const card=el('div',{class:'card'});
+  card.append(el('h2',{},'特殊理由請假'));
+  card.append(el('p',{class:'hint'},'登記後該老師當天會被自動跳過，但不算他輪過，下次仍優先輪到。'));
+  const tSel=el('select',{},el('option',{value:''},'選擇老師'),
+    ...[...state.teachers].sort((a,b)=>a.seq-b.seq).map(t=>el('option',{value:t.id},`${t.seq}．${t.name}`)));
+  const dIn=el('input',{type:'date',value:today()});
+  const rIn=el('input',{type:'text',placeholder:'理由（選填）'});
+  card.append(el('div',{class:'row'},
+    el('label',{class:'field'},'老師',tSel),
+    el('label',{class:'field'},'日期',dIn),
+    el('label',{class:'field'},'理由',rIn),
+    el('button',{class:'btn',onclick:()=>{
+      if(!tSel.value){toast('請選擇老師');return}
+      state.leaves.push({id:uid(),teacherId:tSel.value,date:dIn.value,reason:rIn.value.trim()});save();render();
+    }},'登記請假')));
+  const list=[...state.leaves].sort((a,b)=>b.date.localeCompare(a.date));
+  if(list.length){
+    const t=el('table');
+    t.append(el('thead',{},el('tr',{},el('th',{},'日期'),el('th',{},'老師'),el('th',{},'理由'),el('th',{},''))));
+    const tb=el('tbody');
+    list.forEach(l=>tb.append(el('tr',{},el('td',{},l.date),el('td',{},teacherName(l.teacherId)),el('td',{},l.reason||'—'),
+      el('td',{},el('button',{class:'icon danger',onclick:()=>{state.leaves=state.leaves.filter(x=>x.id!==l.id);save();render()}},'刪除')))));
+    t.append(tb);card.append(el('div',{class:'tbl-scroll'},t));
+  }else card.append(el('p',{class:'empty'},'目前沒有請假登記。'));
+  root.append(card);
+}
+
+/* ---------- 記錄統計 ---------- */
+function viewRecords(root){
+  // 復原
+  if(state.meta.lastBatch&&state.meta.lastBatch.length){
+    root.append(el('div',{class:'card',style:'padding:14px 20px'},
+      el('div',{class:'row',style:'align-items:center'},
+        el('span',{style:'font-weight:600'},`上一次寫入了 ${state.meta.lastBatch.length} 筆。`),
+        el('button',{class:'btn warn sm',style:'font-size:14px;padding:6px 12px',onclick:()=>{
+          state.assignments=state.assignments.filter(a=>!state.meta.lastBatch.includes(a.id));
+          state.meta.lastBatch=null;save();toast('已復原');render();
+        }},'復原上一次寫入'))));
+  }
+
+  // 老師統計
+  const sCard=el('div',{class:'card'});
+  sCard.append(el('h2',{},'每位老師的輪替狀況'));
+  if(state.meta.seasonStart)sCard.append(el('p',{class:'hint'},'次數自學年分界日（'+state.meta.seasonStart+'）起算。'));
+  sCard.append(el('div',{class:'kpi'},
+    el('div',{},el('b',{},String(state.teachers.length)),el('span',{},'老師人數')),
+    el('div',{},el('b',{},String(state.classes.length)),el('span',{},'班級數')),
+    el('div',{},el('b',{},String(state.assignments.length)),el('span',{},'累計代理次數')) ));
+  if(state.teachers.length){
+    const t=el('table');
+    t.append(el('thead',{},el('tr',{},el('th',{},'序號'),el('th',{},'姓名'),el('th',{},'任課班級'),el('th',{},'累計代理'),el('th',{},'最近一次'))));
+    const tb=el('tbody');
+    [...state.teachers].sort((a,b)=>a.seq-b.seq).forEach(tr=>{
+      const total=tr.classes.reduce((s,cid)=>s+serveCount(cid,tr.id),0);
+      tb.append(el('tr',{},el('td',{},el('span',{class:'seq'},String(tr.seq))),el('td',{html:`<b>${tr.name}</b>`}),
+        el('td',{},tr.classes.length?tr.classes.map(cid=>el('span',{class:'chip cls'},className(cid))):el('span',{class:'empty'},'—')),
+        el('td',{},String(total)+' 次'),el('td',{},lastServed(tr.id)||'—')));
+    });
+    t.append(tb);sCard.append(el('div',{class:'tbl-scroll'},t));
+  }
+  root.append(sCard);
+
+  // 各班輪替序列
+  const qCard=el('div',{class:'card'});
+  qCard.append(el('h2',{},'各班輪替序列（下一位是誰）'));
+  qCard.append(el('p',{class:'hint'},'綠色＝下次優先。「第幾輪」表示大家輪過幾圈。'));
+  classesByGrade().forEach(grp=>{
+    const body=el('div',{class:'grade-body'});
+    grp.items.forEach(c=>{
+      const elig=eligible(c.id);const ri=roundInfo(c.id);
+      const block=el('div',{style:'margin-bottom:14px'});
+      block.append(el('div',{},el('b',{},c.name),ri?el('span',{style:'font-size:12px;color:var(--muted);margin-left:8px'},`第 ${ri.round} 輪．本輪還有 ${ri.remaining} 人未代理`):''));
+      if(!elig.length){block.append(el('p',{class:'empty'},'尚未設定任課老師'));body.append(block);return}
+      const ranked=[...elig].sort((a,b)=>(serveCount(c.id,a.id)-serveCount(c.id,b.id))||(a.seq-b.seq));
+      const q=el('div',{class:'queue'});
+      ranked.forEach((t,i)=>q.append(el('div',{class:'q-item'+(i===0?' next':'')},
+        el('span',{class:'seq'},String(t.seq)),el('span',{},t.name),el('span',{class:'q-cnt'},`${serveCount(c.id,t.id)} 次`))));
+      block.append(q);body.append(block);
+    });
+    qCard.append(el('details',{class:'grade-group',open:'true'},
+      el('summary',{},el('span',{class:'caret'},'▸'),grp.label),body));
+  });
+  if(!state.classes.length)qCard.append(el('p',{class:'empty'},'尚無班級。'));
+  root.append(qCard);
+
+  // 當月統計
+  const mCard=el('div',{class:'card'});
+  mCard.append(el('h2',{},'當月統計'));
+  const mInput=el('input',{type:'month',value:today().slice(0,7)});
+  const out=el('div',{style:'margin-top:12px'});
+  const draw=()=>{out.innerHTML='';out.append(renderMonth(mInput.value))};
+  mCard.append(el('div',{class:'row'},el('label',{class:'field'},'月份',mInput),
+    el('button',{class:'btn',onclick:draw},'查詢'),
+    el('button',{class:'btn ghost',onclick:()=>exportMonthCSV(mInput.value)},'匯出 CSV')));
+  mCard.append(out);draw();
+  root.append(mCard);
+
+  // 完整記錄
+  const rCard=el('div',{class:'card'});
+  rCard.append(el('h2',{},'完整代理記錄'));
+  const logs=[...state.assignments].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  if(!logs.length){rCard.append(el('p',{class:'empty'},'目前沒有記錄。'));root.append(rCard);return}
+  const t=el('table');
+  t.append(el('thead',{},el('tr',{},el('th',{},'日期'),el('th',{},'班級'),el('th',{},'代理老師'),el('th',{},'類型'),el('th',{},'缺席／備註'),el('th',{},''))));
+  const tb=el('tbody');
+  logs.forEach(a=>tb.append(el('tr',{},el('td',{},a.date),el('td',{},className(a.classId)),el('td',{html:`<b>${teacherName(a.teacherId)}</b>`}),
+    el('td',{},el('span',{class:'badge '+(a.manual?'manual':'auto')},a.manual?'手動':'自動')),
+    el('td',{},[a.absent,a.note].filter(Boolean).join('／')||'—'),
+    el('td',{},el('button',{class:'icon danger',onclick:()=>{if(!confirm('刪除這筆記錄？會影響往後輪替計算。'))return;state.assignments=state.assignments.filter(x=>x.id!==a.id);save();render()}},'刪除')))));
+  t.append(tb);rCard.append(el('div',{class:'tbl-scroll'},t));
+  root.append(rCard);
+}
+
+function monthRows(ym){
+  return state.assignments.filter(a=>a.date.slice(0,7)===ym).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function renderMonth(ym){
+  const box=el('div',{});
+  const rows=monthRows(ym);
+  if(!rows.length){box.append(el('p',{class:'empty'},'這個月沒有記錄。'));return box}
+  // 每位老師
+  const byT={},byC={};
+  rows.forEach(a=>{byT[a.teacherId]=(byT[a.teacherId]||0)+1;byC[a.classId]=(byC[a.classId]||0)+1});
+  box.append(el('div',{style:'font-weight:700;margin:6px 0'},'每位老師'));
+  const t1=el('table');t1.append(el('thead',{},el('tr',{},el('th',{},'老師'),el('th',{},'代理次數'))));
+  const b1=el('tbody');Object.entries(byT).sort((a,b)=>b[1]-a[1]).forEach(([id,n])=>b1.append(el('tr',{},el('td',{},teacherName(id)),el('td',{},n+' 次'))));
+  t1.append(b1);box.append(t1);
+  box.append(el('div',{style:'font-weight:700;margin:14px 0 6px'},'每班'));
+  const t2=el('table');t2.append(el('thead',{},el('tr',{},el('th',{},'班級'),el('th',{},'次數'))));
+  const b2=el('tbody');Object.entries(byC).sort((a,b)=>b[1]-a[1]).forEach(([id,n])=>b2.append(el('tr',{},el('td',{},className(id)),el('td',{},n+' 次'))));
+  t2.append(b2);box.append(t2);
+  // 明細
+  box.append(el('div',{style:'font-weight:700;margin:14px 0 6px'},'明細'));
+  const t3=el('table');t3.append(el('thead',{},el('tr',{},el('th',{},'日期'),el('th',{},'班級'),el('th',{},'代理老師'),el('th',{},'類型'),el('th',{},'缺席／備註'))));
+  const b3=el('tbody');
+  rows.forEach(a=>b3.append(el('tr',{},el('td',{},a.date),el('td',{},className(a.classId)),el('td',{},teacherName(a.teacherId)),
+    el('td',{},a.manual?'手動':'自動'),el('td',{},[a.absent,a.note].filter(Boolean).join('／')||'—'))));
+  t3.append(b3);box.append(el('div',{class:'tbl-scroll'},t3));
+  return box;
+}
+function exportMonthCSV(ym){
+  const rows=monthRows(ym);
+  if(!rows.length){toast('這個月沒有記錄');return}
+  const head=['日期','年級','班級','代理老師','序號','類型','缺席者','備註'];
+  const lines=[head.join(',')];
+  rows.forEach(a=>{
+    const t=teacher(a.teacherId);
+    const cells=[a.date,gradeLabel(classGrade(a.classId)),className(a.classId),teacherName(a.teacherId),
+      t?t.seq:'',a.manual?'手動':'自動',a.absent||'',a.note||''];
+    lines.push(cells.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(','));
+  });
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=el('a',{href:url,download:`${ym.replace('-','')}_代導明細.csv`});
+  document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url);toast('已匯出 CSV');
+}
+
+/* ---------- 備份與重置 ---------- */
+function viewBackup(root){
+  const bCard=el('div',{class:'card'});
+  bCard.append(el('h2',{},'備份'));
+  bCard.append(el('p',{class:'hint'},'資料只存這台瀏覽器。建議每次改完就下載一份。'));
+  bCard.append(el('div',{class:'row'},
+    el('button',{class:'btn accent',onclick:exportJSON},'下載備份（JSON）'),
+    el('button',{class:'btn ghost',onclick:()=>$('#importFile').click()},'匯入備份'),
+    el('input',{type:'file',id:'importFile',accept:'.json,application/json',style:'display:none',onchange:importJSON})));
+  root.append(bCard);
+
+  const sCard=el('div',{class:'card'});
+  sCard.append(el('h2',{},'新學年（次數歸零、保留歷史）'));
+  sCard.append(el('p',{class:'hint'},'開新學年用。設一個「分界日」，之後輪替次數從零開始，但所有舊記錄仍保留在「記錄統計」裡可查、可匯出。'));
+  const sDate=el('input',{type:'date',value:today()});
+  sCard.append(el('div',{class:'row'},el('label',{class:'field'},'分界日（含當天起重新算）',sDate),
+    el('button',{class:'btn warn',onclick:()=>{
+      if(!confirm(`確定將輪替次數從 ${sDate.value} 起歸零？（舊記錄會保留）`))return;
+      state.meta.seasonStart=sDate.value;
+      state.teachers.forEach(t=>t.startOffset={});
+      save();toast('已設定新學年分界');render();
+    }},'設定新學年')));
+  if(state.meta.seasonStart)sCard.append(el('div',{style:'margin-top:10px'},
+    el('span',{class:'chip cls'},'目前分界日：'+state.meta.seasonStart),
+    el('button',{class:'icon',style:'margin-left:8px',onclick:()=>{if(confirm('取消分界，改為計算全部歷史？'))return void(state.meta.seasonStart=null,save(),render())}},'取消分界')));
+  root.append(sCard);
+
+  const dCard=el('div',{class:'card'});
+  dCard.append(el('h2',{style:'color:var(--danger)'},'全部清除（危險）'));
+  dCard.append(el('p',{class:'hint'},'刪掉所有老師、班級、記錄，回到示範資料，無法復原。請務必先下載備份。'));
+  dCard.append(el('button',{class:'btn danger',onclick:()=>{
+    if(!confirm('第 1 步：真的要清除全部資料嗎？'))return;
+    if(!confirm('第 2 步：這會刪掉所有老師、班級、記錄，無法復原。確定？'))return;
+    const w=prompt('第 3 步：請輸入「清除」兩個字來確認。');
+    if(w!=='清除'){toast('已取消');return}
+    state=seed();save();dailyState=null;toast('已清除並重設');render();
+  }},'我了解風險，全部清除'));
+  root.append(dCard);
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=el('a',{href:url,download:`${ymd(new Date())}_代導記錄.json`});
+  document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url);
+  saveClean();toast('已下載備份');
+}
+function importJSON(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const obj=migrate(JSON.parse(r.result));
+    if(!obj||!obj.classes||!obj.teachers)throw 0;
+    state=obj;saveClean();dailyState=null;toast('已匯入');render();
+  }catch(err){alert('匯入失敗：檔案格式不正確。')}e.target.value=''};
+  r.readAsText(f);
+}
+
+render();
+</script>
+</body>
+</html>
