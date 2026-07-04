@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>115 新北市立國中教甄・各科 · 地圖／距離／志願序</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --ink:#1a2433; --ink-soft:#5b6677; --line:#dfe4ec; --bg:#f3f5f8; --card:#fff;
+  --accent:#0f6e6e; --accent-soft:#e3f1f0; --near:#1f8a4c; --mid:#c98a14; --far:#c0532e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:22px 16px 60px}
+header{margin-bottom:14px}
+.eyebrow{font-size:12px;letter-spacing:.16em;color:var(--accent);font-weight:700;text-transform:uppercase}
+h1{font-size:24px;font-weight:800;letter-spacing:-.01em;margin:4px 0 6px}
+.sub{font-size:13px;color:var(--ink-soft)}
+
+.tabs{display:flex;gap:4px;margin:16px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tab{flex:1;text-align:center;font-size:14px;font-weight:700;padding:10px 8px;border-radius:9px;cursor:pointer;color:var(--ink-soft);user-select:none;transition:.15s}
+.tab:hover{color:var(--ink)} .tab.on{background:var(--accent);color:#fff}
+.panel{display:none} .panel.on{display:block}
+
+/* map */
+#map{height:520px;border:1px solid var(--line);border-radius:14px}
+.maplegend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin-top:10px}
+.maplegend span{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.pop b{font-size:14px} .pop .meta{font-size:12px;color:#555;margin:3px 0}
+.pop a{color:var(--accent);font-weight:600;text-decoration:none} 
+.pop button{margin-top:6px;font-size:12px;padding:5px 10px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:7px;cursor:pointer;font-weight:600}
+
+/* distance calc */
+.calc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.calc label{font-size:12px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px}
+.row1{display:flex;gap:8px;flex-wrap:wrap}
+#addr{flex:1;min-width:200px;font-size:15px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-family:inherit;color:var(--ink)}
+#addr:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{font-size:15px;font-weight:700;padding:11px 20px;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;transition:.15s}
+.btn:hover{background:#0c5a5a} .btn:disabled{opacity:.55;cursor:wait}
+#msg{font-size:13px;margin-top:9px;min-height:18px} #msg.err{color:var(--far)} #msg.ok{color:var(--near)} #msg.load{color:var(--ink-soft)}
+details{margin-top:10px} summary{font-size:12.5px;color:var(--accent);cursor:pointer}
+.adv{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.adv input{font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:120px}
+.adv .btn2{font-size:13px;padding:8px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.controls .cap{font-size:12px;color:var(--ink-soft)}
+.chip{font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);padding:6px 12px;border-radius:999px;cursor:pointer;transition:.15s;user-select:none}
+.chip:hover{border-color:var(--accent)} .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+thead th{font-size:12px;color:var(--ink-soft);font-weight:700;text-align:left;padding:11px 12px;background:#fafbfc;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+thead th.num,tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+thead th .ar{opacity:.35;font-size:10px} thead th.sorted .ar{opacity:1;color:var(--accent)}
+tbody td{padding:11px 12px;border-bottom:1px solid #eef1f5;font-size:14px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:#f9fbfc}
+.rank{color:var(--ink-soft);font-size:12px;width:26px}
+.sname{font-weight:600}
+.zone{display:inline-block;font-size:11px;color:var(--ink-soft);background:#f0f2f5;padding:2px 7px;border-radius:6px;margin-left:6px}
+.openbadge{display:inline-block;min-width:24px;text-align:center;font-weight:700;font-size:13px;padding:2px 8px;border-radius:7px;background:var(--accent-soft);color:var(--accent)}
+.band{font-weight:700;font-variant-numeric:tabular-nums}
+.nav,.addbtn{font-size:12.5px;text-decoration:none;padding:5px 10px;border-radius:8px;white-space:nowrap;font-weight:600;cursor:pointer;border:1px solid var(--accent-soft);background:var(--accent-soft);color:var(--accent)}
+.nav:hover,.addbtn:hover{background:var(--accent);color:#fff}
+.r-near{box-shadow:inset 3px 0 var(--near)} .r-mid{box-shadow:inset 3px 0 var(--mid)} .r-far{box-shadow:inset 3px 0 var(--far)}
+
+/* ranking */
+.rankgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.rankgrid{grid-template-columns:1fr}}
+.col{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.col h3{font-size:14px;margin-bottom:4px} .col .hint{font-size:12px;color:var(--ink-soft);margin-bottom:10px}
+.item{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;background:#fff}
+.item.dragging{opacity:.4} .rankcol .item{cursor:grab}
+.item.first{box-shadow:inset 3px 0 var(--accent)}
+.item .no{font-weight:800;color:var(--accent);min-width:22px;font-variant-numeric:tabular-nums}
+.item .rkin{width:40px;height:34px;text-align:center;font-weight:800;font-size:15px;color:var(--accent);background:#f4f9f8;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums;padding:0}
+.item .rkin:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+.item .itmain{flex:1;min-width:0}
+.item .nm{font-size:14px;font-weight:600}
+.item .z{font-size:11px;color:var(--ink-soft);font-weight:500}
+.item .notein{width:100%;margin-top:4px;font-family:inherit;font-size:12.5px;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:6px;padding:2px 6px}
+.item .notein::placeholder{color:#b3c0cc}
+.item .notein:hover{background:#f4f7fa} .item .notein:focus{outline:none;background:#fff;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.item .d{font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.item .itacts{display:flex;gap:3px;align-self:flex-start}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:7px;width:28px;height:28px;cursor:pointer;font-size:14px;color:var(--ink-soft);line-height:1}
+.iconbtn:hover{border-color:var(--accent);color:var(--accent)}
+.empty{font-size:13px;color:var(--ink-soft);padding:14px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+.rankbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.searchbar{width:100%;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
+#distChips{display:flex;flex-wrap:wrap;gap:6px}
+.chip.dist-f{padding:5px 11px}
+.mapbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.pickmsg{font-size:12px;color:var(--accent);font-weight:600}
+#map.picking{cursor:crosshair}
+.advhint{font-size:12px;color:var(--ink-soft);line-height:1.6;margin:8px 0}
+.pickcard{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:14px 16px;flex-wrap:wrap}
+.pickcard-txt{display:flex;flex-direction:column;gap:2px}
+.pickcard-txt b{font-size:15px;color:var(--ink)}
+.pickcard-txt span{font-size:12.5px;color:var(--ink-soft)}
+.pickcard .btn{white-space:nowrap}
+.originnow{font-size:12.5px;color:var(--ink-soft);margin:10px 2px 0}
+.originnow.set{color:var(--accent);font-weight:600}
+.finehint{font-size:11.5px;color:var(--ink-soft);line-height:1.6;margin:-4px 2px 12px}
+.rankhelp{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.rankhelp .rh-title{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:11px;letter-spacing:.02em}
+.rankhelp .rh-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 22px}
+.rankhelp .rh-grid>div{font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+.rankhelp .rh-grid b{color:var(--accent);font-weight:700;margin-right:6px}
+.rankhelp .rh-note{font-size:12px;color:var(--ink-soft);margin-top:11px;padding-top:11px;border-top:1px solid #eef1f5}
+@media(max-width:620px){.rankhelp .rh-grid{grid-template-columns:1fr}}
+.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)} .ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+.note{font-size:12px;color:var(--ink-soft);margin-top:16px;line-height:1.7;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.note b{color:var(--ink)}
+.foot{font-size:11.5px;color:#9aa4b2;margin-top:14px;text-align:center}
+.gbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.gbar .cap{font-weight:800;font-size:14px;color:var(--ink)}
+.sel2{font-family:inherit;font-size:15px;font-weight:700;padding:8px 12px;border:1px solid var(--accent);border-radius:9px;background:var(--accent-soft);color:var(--ink);cursor:pointer}
+.subjinfo{font-size:12.5px;color:var(--ink-soft)}
+.locksubj{font-size:16px;font-weight:800;color:var(--ink);padding:2px 2px}
+.backlink{font-size:12.5px;color:var(--accent);text-decoration:none;margin-left:auto;font-weight:600}
+.backlink:hover{text-decoration:underline}
+@media print{
+  .tabs,#p-map,#p-dist,#rankbar,#candCol,.note,.foot,.itacts,.hint,.rankhelp,header .sub{display:none!important}
+  body{background:#fff;padding:0}
+  .wrap{max-width:none}
+  .rankgrid{grid-template-columns:1fr;gap:0}
+  .col{border:none;padding:0}
+  .col h3{margin-bottom:8px}
+  .item{break-inside:avoid;border:1px solid #ddd;box-shadow:none;margin-bottom:4px}
+  .item.first{box-shadow:inset 3px 0 #000}
+  .item .rkin{border:none;background:none;color:#000}
+  .item .notein{border:none;background:none;color:#333}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">115 學年度 · 新北市立國中 · 各科（一般組）</div>
+  <h1>新北市教甄 · 地圖／距離／志願序</h1>
+  <div class="sub">選科目→看該科各校缺額、位置、通勤距離、排志願序。76 所學校、38 科可切換，全部在你自己的瀏覽器裡完成。</div>
+</header>
+
+<div class="gbar"><span class="cap">科目</span><select id="subjSel" class="sel2"></select><span id="subjInfo" class="subjinfo"></span></div>
+<div class="tabs">
+  <div class="tab on" data-p="map">① 學校地圖</div>
+  <div class="tab" data-p="dist">② 距離估算</div>
+  <div class="tab" data-p="rank">③ 志願序排序</div>
+</div>
+
+<!-- ① MAP -->
+<section class="panel on" id="p-map">
+  <div class="mapbar"><button class="btn2" id="pickHome">📍 在地圖上點我家（設為出發點）</button><span class="pickmsg" id="pickMsg"></span></div>
+  <div id="map"></div>
+  <div class="maplegend" id="maplegend"></div>
+  <div class="finehint" style="margin:8px 2px 0">地圖顏色依行政區分色，只是配色，不影響你用「行政區」篩選。</div>
+</section>
+
+<!-- ② DISTANCE -->
+<section class="panel" id="p-dist">
+  <div class="calc">
+    <label>你的出發地</label>
+    <div class="pickcard">
+      <div class="pickcard-txt"><b>在地圖上點你家最準 📍</b><span>免打地址、手機也順（門牌查詢常查不到）</span></div>
+      <button class="btn" id="pickHome2">去地圖點我家</button>
+    </div>
+    <div id="originNow" class="originnow">目前尚未設定出發點，表格先依開缺數排序。</div>
+    <details><summary>進階：改用地址或座標</summary>
+      <div class="advhint">地址用的是 OpenStreetMap，台灣門牌常查不到；查不到請改用上面的地圖點選。地標或路口比門牌容易找，或把 Google 地圖座標整串（如 25.08, 121.38）貼進來。</div>
+      <div class="row1">
+        <input id="addr" placeholder="地標／路口／座標，如 25.08, 121.38" autocomplete="off">
+        <button class="btn2" id="go">計算</button>
+      </div>
+      <div id="msg"></div>
+      <div class="adv"><input id="mlat" placeholder="貼上座標，如 25.08, 121.38"><input id="mlng" placeholder="經度（分兩格填才需要）"><button class="btn2" id="mgo">用座標計算</button></div>
+    </details>
+  </div>
+  <div class="controls"><span class="cap">實際區</span><span id="distChips"></span></div>
+  <div class="finehint">缺額依官方「一般組總缺額一覽表」；學校位置以官方開放資料（新北市重要地標）定位。地圖顏色依分區分色。<b>仍請自行核對，發現有誤歡迎回報修正</b>。</div>
+  <div class="controls"><span class="cap">距離</span>
+    <span class="chip band-f on" data-band="all">全部</span>
+    <span class="chip band-f" data-band="near">近 ≤5km</span>
+    <span class="chip band-f" data-band="mid">中 5–20km</span>
+    <span class="chip band-f" data-band="far">遠 &gt;20km</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th></th><th data-sort="n">學校 <span class="ar">↕</span></th>
+      <th data-sort="o" class="num sorted">開缺 <span class="ar">↓</span></th>
+      <th data-sort="s" class="num">直線km <span class="ar">↕</span></th>
+      <th data-sort="r" class="num">估道路km <span class="ar">↕</span></th>
+      <th>操作</th>
+    </tr></thead>
+    <tbody id="tb"></tbody>
+  </table>
+</section>
+
+<!-- ③ RANK -->
+<section class="panel" id="p-rank">
+  <div class="rankbar" id="rankbar">
+    <button class="btn" id="saveBtn">儲存進度</button>
+    <button class="btn" id="loadBtn">載入進度</button>
+    <button class="btn" id="exportBtn">匯出 CSV</button>
+    <button class="btn" id="printBtn">存 PDF</button>
+    <button class="btn ghost" id="clearBtn">清空志願</button>
+    <input type="file" id="progFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="rankgrid">
+    <div class="col rankcol">
+      <h3>我的志願序</h3><div class="hint">上面＝第一志願。可拖曳、改左邊數字跳位、或加備註。</div>
+      <div id="rankList"></div>
+    </div>
+    <div class="col" id="candCol">
+      <h3>候選學校</h3><div class="hint">點「＋加入」把學校放進志願序。</div>
+      <input class="searchbar" id="candSearch" placeholder="搜尋校名或實際區…">
+      <div id="candList"></div>
+    </div>
+  </div>
+
+  <div class="rankhelp">
+    <div class="rh-title">使用說明</div>
+    <div class="rh-grid">
+      <div><b>排序</b>拖曳整列、在左邊數字框輸入名次按 Enter 跳位、或用 ▲▼ 微調。</div>
+      <div><b>備註</b>每列可寫自己的筆記（通勤、意願⋯），會一起匯出。</div>
+      <div><b>加入／移除</b>從「候選學校」、地圖或距離表按「＋」加入；按 ✕ 移除。</div>
+      <div><b>儲存進度</b>把目前排序與備註存成一個檔，排一半可先存。</div>
+      <div><b>載入進度</b>下次打開選那個檔，接著排。</div>
+      <div><b>匯出 CSV</b>給 Excel／試算表的清單（含備註與距離）。</div>
+      <div><b>存 PDF</b>把志願清單印出或另存成 PDF。</div>
+      <div><b>清空志願</b>清掉目前所有志願（會再問一次）。</div>
+    </div>
+    <div class="rh-note">在同一台電腦的同一個瀏覽器裡，通常關掉再打開排序還會在；但用「下載的檔案直接開」時不一定保證留存（Safari、無痕模式常不會，搬移或改名檔案也可能失效）。要確定不遺失，排到一段落就按「儲存進度」存成檔案。工具改版更新後（尤其缺額數字更新時），瀏覽器裡的自動記錄可能會對不齊，<b>重要排序請務必先按「儲存進度」匯出備份</b>。</div>
+  </div>
+</section>
+
+<div class="note">
+  你的志願、備註、出發地都只留在你自己的裝置，分享的人（含製作者）收不到你的任何資料。查距離時地址會送到 <b>OpenStreetMap</b> 定位——它是獨立的開放地圖，<b>不是 Google</b>；只有按「路線」才會另外開 Google 地圖。「估道路km」是粗估、非精確車程；缺額與校名以官方簡章為準。
+</div>
+<div class="foot">製作：<a href="https://www.youtube.com/channel/UCltqZGFhSMw7h0wMFXiG0Ow" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">小小黑開箱 ▸</a>　・　地圖圖資 © OpenStreetMap 貢獻者</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const RAW = [{"n": "土城國中", "f": "新北市立土城國民中學", "d": "土城", "z": "板橋", "lat": 24.962418, "lng": 121.43017, "subj": {"英語": 1, "數學": 1, "童軍": 1, "家政": 1, "資訊科技": 1, "體育": 1, "特教身障": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "特教資優(生物)": 1}, "est": false, "id": 0}, {"n": "大觀國中", "f": "新北市立大觀國民中學", "d": "板橋", "z": "板橋", "lat": 25.011253, "lng": 121.448521, "subj": {"國文": 2, "本土語文(客語)": 1, "理化": 1, "童軍": 1}, "est": false, "id": 1}, {"n": "中山國中", "f": "新北市立中山國民中學", "d": "板橋", "z": "板橋", "lat": 25.018554, "lng": 121.467473, "subj": {"國文": 1, "歷史": 1, "理化": 1, "視覺藝術": 1, "家政": 1, "生活科技": 1, "資訊科技": 1, "特教身障": 1, "特教資優(數學)": 2, "特教資優(生物)": 2}, "est": false, "id": 2}, {"n": "中正國中", "f": "新北市立中正國民中學", "d": "板橋", "z": "板橋", "lat": 24.98345, "lng": 121.456842, "subj": {"本土語文(客語)": 1, "數學": 1, "歷史": 1, "地理": 1, "視覺藝術(雙語)": 1, "童軍": 1, "童軍(雙語)": 1, "家政": 1, "家政(雙語)": 1, "特教身障": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "專任輔導": 1}, "est": false, "id": 3}, {"n": "江翠國中", "f": "新北市立江翠國民中學", "d": "板橋", "z": "板橋", "lat": 25.028945, "lng": 121.468432, "subj": {"本土語文(閩南語)": 1, "本土語文(客語)": 1, "數學": 1, "歷史": 1, "地理": 1, "公民與社會": 1, "生物": 1, "理化": 2, "視覺藝術(雙語)": 1, "家政(雙語)": 1, "資訊科技": 1, "健康教育": 1, "體育": 1, "特教身障": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "專任輔導": 1}, "est": false, "id": 4}, {"n": "忠孝國中", "f": "新北市立忠孝國民中學", "d": "板橋", "z": "板橋", "lat": 25.004843, "lng": 121.461643, "subj": {"本土語文(閩南語)": 1, "本土語文(客語)": 1, "理化": 1, "特教身障": 2}, "est": false, "id": 5}, {"n": "板橋國中", "f": "新北市立板橋國民中學", "d": "板橋", "z": "板橋", "lat": 25.024005, "lng": 121.454153, "subj": {"國文": 1, "歷史": 1, "公民與社會": 1, "表演藝術": 1, "輔導": 1, "生活科技": 1, "資訊科技": 1, "體育(專長類科)": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 6}, {"n": "重慶國中", "f": "新北市立重慶國民中學", "d": "板橋", "z": "板橋", "lat": 24.998181, "lng": 121.463153, "subj": {"理化": 1, "生活科技": 1}, "est": false, "id": 7}, {"n": "新埔國中", "f": "新北市立新埔國民中學", "d": "板橋", "z": "板橋", "lat": 25.024795, "lng": 121.459751, "subj": {"國文": 1, "英語": 2, "數學": 1, "資訊科技": 1, "專任輔導": 1}, "est": false, "id": 8}, {"n": "溪崑國中", "f": "新北市立溪崑國民中學", "d": "板橋", "z": "板橋", "lat": 24.998411, "lng": 121.431271, "subj": {"本土語文(閩南語)": 1, "公民與社會": 2, "音樂": 1, "童軍": 1, "生活科技": 1, "資訊科技": 1, "特教身障": 1}, "est": false, "id": 9}, {"n": "三多國中", "f": "新北市立三多國民中學", "d": "三峽", "z": "三鶯", "lat": 25.00632, "lng": 121.414781, "subj": {"表演藝術": 1, "家政": 1, "特教身障": 1}, "est": false, "id": 10}, {"n": "三峽國中", "f": "新北市立三峽國民中學", "d": "三峽", "z": "三鶯", "lat": 24.939055, "lng": 121.369072, "subj": {"國文": 1, "英語": 1, "本土語文(閩南語)": 1, "數學": 2, "理化": 1, "視覺藝術": 1, "家政": 1, "特教身障": 2}, "est": false, "id": 11}, {"n": "安溪國中", "f": "新北市立安溪國民中學", "d": "三峽", "z": "三鶯", "lat": 24.926564, "lng": 121.372764, "subj": {"國文": 1, "英語": 2, "家政": 1, "特教資優(數學)": 1, "特教資優(理化)": 1}, "est": false, "id": 12}, {"n": "尖山國中", "f": "新北市立尖山國民中學", "d": "鶯歌", "z": "三鶯", "lat": 24.943771, "lng": 121.342248, "subj": {"生活科技": 1, "專任輔導": 1}, "est": false, "id": 13}, {"n": "育林國中", "f": "新北市立育林國民中學", "d": "樹林", "z": "三鶯", "lat": 24.98576, "lng": 121.415668, "subj": {"國文": 1, "表演藝術": 1, "童軍": 1, "生活科技": 1, "健康教育": 1, "體育(專長類科)": 1, "特教身障": 1, "特教資優(數學)": 1, "專任輔導": 1}, "est": false, "id": 14}, {"n": "柑園國中", "f": "新北市立柑園國民中學", "d": "樹林", "z": "三鶯", "lat": 24.954467, "lng": 121.384205, "subj": {"數學": 1, "理化": 1, "健康教育": 1, "體育": 1}, "est": false, "id": 15}, {"n": "桃子腳國中小", "f": "新北市立桃子腳國民中小學", "d": "樹林", "z": "三鶯", "lat": 24.949026, "lng": 121.382824, "subj": {"資訊科技": 1}, "est": false, "id": 16}, {"n": "鳳鳴國中", "f": "新北市立鳳鳴國民中學", "d": "鶯歌", "z": "三鶯", "lat": 24.967078, "lng": 121.33177, "subj": {"國文": 1, "生物": 1, "理化": 2, "生活科技": 1, "資訊科技": 1, "專任輔導": 1}, "est": false, "id": 17}, {"n": "鶯歌國中", "f": "新北市立鶯歌國民中學", "d": "鶯歌", "z": "三鶯", "lat": 24.950417, "lng": 121.34482, "subj": {"輔導": 1, "資訊科技": 1, "特教身障": 1}, "est": false, "id": 18}, {"n": "中和國中", "f": "新北市立中和國民中學", "d": "中和", "z": "雙和", "lat": 24.98617, "lng": 121.508548, "subj": {"國文": 1, "公民與社會": 1, "健康教育": 1, "體育(雙語)": 1}, "est": false, "id": 19}, {"n": "永和國中", "f": "新北市立永和國民中學", "d": "永和", "z": "雙和", "lat": 25.006683, "lng": 121.52331, "subj": {"數學": 1, "歷史": 3, "音樂(雙語)": 1, "表演藝術(雙語)": 1, "生活科技": 2, "資訊科技": 1, "健康教育(雙語)": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "專任輔導": 1}, "est": false, "id": 20}, {"n": "自強國中", "f": "新北市立自強國民中學", "d": "中和", "z": "雙和", "lat": 24.998738, "lng": 121.472675, "subj": {"國文": 1, "本土語文(閩南語)": 1, "數學": 1, "理化": 1, "童軍": 1}, "est": false, "id": 21}, {"n": "漳和國中", "f": "新北市立漳和國民中學", "d": "中和", "z": "雙和", "lat": 25.002673, "lng": 121.505538, "subj": {"國文": 1, "數學": 1, "特教身障": 2, "專任輔導": 1}, "est": false, "id": 22}, {"n": "福和國中", "f": "新北市立福和國民中學", "d": "永和", "z": "雙和", "lat": 25.003993, "lng": 121.52085, "subj": {"數學": 1, "公民與社會": 1, "理化": 1, "視覺藝術(專長類科)": 1, "輔導": 2, "生活科技": 2, "健康教育": 1, "體育(專長類科)": 1, "特教身障": 1, "特教資優(生物)": 1}, "est": false, "id": 23}, {"n": "積穗國中", "f": "新北市立積穗國民中學", "d": "中和", "z": "雙和", "lat": 25.000123, "lng": 121.478925, "subj": {"英語": 2, "本土語文(閩南語)": 1, "數學": 2, "歷史": 1, "公民與社會": 1, "生活科技(雙語)": 1, "體育": 1, "體育(專長類科)": 1}, "est": false, "id": 24}, {"n": "汐止國中", "f": "新北市立汐止國民中學", "d": "汐止", "z": "七星", "lat": 25.066948, "lng": 121.658394, "subj": {"國文": 1, "健康教育(雙語)": 1}, "est": false, "id": 25}, {"n": "青山國中小", "f": "新北市立青山國民中小學", "d": "汐止", "z": "七星", "lat": 25.060719, "lng": 121.656844, "subj": {"國文": 1, "童軍": 1}, "est": false, "id": 26}, {"n": "萬里國中", "f": "新北市立萬里國民中學", "d": "萬里", "z": "七星", "lat": 25.177792, "lng": 121.694418, "subj": {"輔導": 1}, "est": false, "id": 27}, {"n": "五峰國中", "f": "新北市立五峰國民中學", "d": "新店", "z": "文山", "lat": 24.966378, "lng": 121.543992, "subj": {"本土語文(閩南語)": 1, "本土語文(客語)": 1, "視覺藝術": 1, "童軍": 1, "體育": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 28}, {"n": "文山國中", "f": "新北市立文山國民中學", "d": "新店", "z": "文山", "lat": 24.956747, "lng": 121.539151, "subj": {"國文": 1, "數學": 2, "表演藝術": 1, "資訊科技": 1, "體育": 1, "特教資優(理化)": 1}, "est": false, "id": 29}, {"n": "深坑國中", "f": "新北市立深坑國民中學", "d": "深坑", "z": "文山", "lat": 25.001743, "lng": 121.618259, "subj": {"國文": 1, "數學": 1, "資訊科技": 1}, "est": false, "id": 30}, {"n": "達觀國中小", "f": "新北市立達觀國民中小學", "d": "新店", "z": "文山", "lat": 24.953611, "lng": 121.500062, "subj": {"國文": 2, "本土語文(閩南語)": 1, "數學": 2, "童軍(雙語)": 1, "家政": 1, "生活科技": 1, "健康教育": 1, "特教身障": 1}, "est": false, "id": 31}, {"n": "平溪國中", "f": "新北市立平溪國民中學", "d": "平溪", "z": "瑞芳", "lat": 25.023486, "lng": 121.733623, "subj": {"國文": 2, "英語": 1, "地理": 1, "理化": 1, "體育": 1, "專任輔導": 1}, "est": false, "id": 32}, {"n": "欽賢國中", "f": "新北市立欽賢國民中學", "d": "瑞芳", "z": "瑞芳", "lat": 25.105004, "lng": 121.845825, "subj": {"國文": 1, "數學": 1, "視覺藝術": 1, "童軍": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 33}, {"n": "瑞芳國中", "f": "新北市立瑞芳國民中學", "d": "瑞芳", "z": "瑞芳", "lat": 25.107444, "lng": 121.814522, "subj": {"國文": 1, "數學": 1, "地球科學": 1, "視覺藝術": 1, "家政": 1, "專任輔導": 1}, "est": false, "id": 34}, {"n": "正德國中(孝賢)", "f": "新北市立正德國民中學", "d": "淡水", "z": "淡水", "lat": 25.178482, "lng": 121.446851, "subj": {"國文": 1, "英語": 2, "本土語文(閩南語)": 1, "本土語文(客語)": 1, "數學": 2, "理化": 1, "地球科學": 1, "視覺藝術": 1, "表演藝術": 1, "童軍": 1, "輔導": 1, "家政": 1, "生活科技": 2, "體育(專長類科)": 1, "專任輔導": 1}, "est": false, "id": 35}, {"n": "三芝國中", "f": "新北市立三芝國民中學", "d": "三芝", "z": "淡水", "lat": 25.25937, "lng": 121.501859, "subj": {"英語": 1, "數學": 1}, "est": false, "id": 36}, {"n": "淡水國中", "f": "新北市立淡水國民中學", "d": "淡水", "z": "淡水", "lat": 25.174711, "lng": 121.43672, "subj": {"國文": 2, "英語": 1, "數學": 2, "理化": 1, "音樂": 1, "表演藝術": 1, "童軍": 1, "生活科技": 1, "資訊科技": 1, "健康教育": 1, "特教身障": 2, "特教資優(數學)": 1, "特教資優(理化)": 1, "專任輔導": 2}, "est": false, "id": 37}, {"n": "八里國中", "f": "新北市立八里國民中學", "d": "八里", "z": "新莊", "lat": 25.139937, "lng": 121.400748, "subj": {"國文": 2, "數學": 1, "公民與社會": 1, "音樂": 1, "表演藝術": 1, "健康教育": 1, "特教身障": 1}, "est": false, "id": 38}, {"n": "中平國中", "f": "新北市立中平國民中學", "d": "新莊", "z": "新莊", "lat": 25.053759, "lng": 121.444532, "subj": {"音樂": 1, "童軍": 1, "家政": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "特教資優(國文)": 1, "特教資優(英語)": 1}, "est": false, "id": 39}, {"n": "五股國中", "f": "新北市立五股國民中學", "d": "五股", "z": "新莊", "lat": 25.083508, "lng": 121.435803, "subj": {"國文": 2, "本土語文(閩南語)": 1, "特教身障": 1}, "est": false, "id": 40}, {"n": "佳林國中", "f": "新北市立佳林國民中學", "d": "林口", "z": "新莊", "lat": 25.080331, "lng": 121.384225, "subj": {"國文": 1, "本土語文(客語)": 1, "表演藝術": 1, "家政": 1, "生活科技": 1}, "est": false, "id": 41}, {"n": "林口國中", "f": "新北市立林口國民中學", "d": "林口", "z": "新莊", "lat": 25.07685, "lng": 121.376893, "subj": {"國文": 3, "英語": 1, "本土語文(客語)": 1, "公民與社會": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 42}, {"n": "南勢國中", "f": "新北市立南勢國民中學", "d": "林口", "z": "新莊", "lat": 25.075078, "lng": 121.362604, "subj": {"國文": 5, "英語": 2, "本土語文(閩南語)": 1, "數學": 3, "歷史": 1, "地理": 1, "公民與社會": 2, "理化": 2, "音樂": 1, "童軍": 1, "生活科技": 1, "資訊科技": 1, "健康教育": 1, "體育": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 43}, {"n": "泰山國中", "f": "新北市立泰山國民中學", "d": "泰山", "z": "新莊", "lat": 25.064018, "lng": 121.42455, "subj": {"生物": 1, "理化": 1, "特教身障": 1}, "est": false, "id": 44}, {"n": "崇林國中", "f": "新北市立崇林國民中學", "d": "林口", "z": "新莊", "lat": 25.068119, "lng": 121.370272, "subj": {"國文": 2, "公民與社會": 1, "童軍": 1, "特教資優(理化)": 1, "特教資優(英語)": 1, "專任輔導": 1}, "est": false, "id": 45}, {"n": "新泰國中", "f": "新北市立新泰國民中學", "d": "新莊", "z": "新莊", "lat": 25.042598, "lng": 121.444371, "subj": {"生物": 1, "地球科學": 1, "童軍": 1, "家政": 1, "體育(專長類科)": 1, "專任輔導": 1}, "est": false, "id": 46}, {"n": "新莊國中", "f": "新北市立新莊國民中學", "d": "新莊", "z": "新莊", "lat": 25.035936, "lng": 121.452482, "subj": {"國文": 8, "數學": 1, "地球科學": 1, "表演藝術": 2, "生活科技": 2, "資訊科技": 1, "特教身障": 1, "特教資優(數學)": 1, "特教資優(理化)": 1, "特教資優(英語)": 1}, "est": false, "id": 47}, {"n": "義學國中", "f": "新北市立義學國民中學", "d": "泰山", "z": "新莊", "lat": 25.051677, "lng": 121.43132, "subj": {"國文": 1, "數學": 1, "地球科學": 1, "視覺藝術": 1, "家政": 1, "特教身障": 1, "特教資優(數學)": 1}, "est": false, "id": 48}, {"n": "福營國中", "f": "新北市立福營國民中學", "d": "新莊", "z": "新莊", "lat": 25.025325, "lng": 121.422519, "subj": {"國文": 5, "英語": 2, "本土語文(閩南語)": 1, "本土語文(客語)": 1, "數學": 1, "公民與社會": 2, "生物": 1, "視覺藝術": 1, "表演藝術": 1, "童軍": 2, "輔導": 1, "家政": 1, "生活科技": 1, "資訊科技": 1, "特教資優(理化)": 1}, "est": false, "id": 49}, {"n": "頭前國中", "f": "新北市立頭前國民中學", "d": "新莊", "z": "新莊", "lat": 25.054699, "lng": 121.459062, "subj": {"歷史": 1, "生物": 1, "生活科技": 1, "健康教育": 1, "特教身障": 1, "專任輔導": 2}, "est": false, "id": 50}, {"n": "二重國中", "f": "新北市立二重國民中學", "d": "三重", "z": "三重", "lat": 25.065719, "lng": 121.480474, "subj": {"音樂": 1, "輔導": 1, "生活科技": 1, "健康教育": 1}, "est": false, "id": 51}, {"n": "三和國中", "f": "新北市立三和國民中學", "d": "三重", "z": "三重", "lat": 25.07657, "lng": 121.486506, "subj": {"國文": 1, "本土語文(客語)": 1, "數學": 2, "生物": 1, "音樂": 1, "表演藝術": 1, "童軍": 1, "生活科技": 1, "資訊科技": 1, "健康教育": 1, "體育": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 52}, {"n": "光榮國中", "f": "新北市立光榮國民中學", "d": "三重", "z": "三重", "lat": 25.07045, "lng": 121.499926, "subj": {"體育(專長類科)": 1}, "est": false, "id": 53}, {"n": "明志國中", "f": "新北市立明志國民中學", "d": "三重", "z": "三重", "lat": 25.063439, "lng": 121.488985, "subj": {"生活科技": 1, "專任輔導": 1}, "est": false, "id": 54}, {"n": "碧華國中", "f": "新北市立碧華國民中學", "d": "三重", "z": "三重", "lat": 25.087229, "lng": 121.488906, "subj": {"本土語文(閩南語)": 2, "數學": 2, "理化": 1, "生活科技": 2, "特教身障": 1, "特教資優(理化)": 1}, "est": false, "id": 55}, {"n": "蘆洲國中", "f": "新北市立蘆洲國民中學", "d": "蘆洲", "z": "三重", "lat": 25.087081, "lng": 121.466383, "subj": {"國文": 2, "表演藝術": 1, "生活科技": 1, "特教身障": 2, "專任輔導": 1}, "est": false, "id": 56}, {"n": "鷺江國中", "f": "新北市立鷺江國民中學", "d": "蘆洲", "z": "三重", "lat": 25.090262, "lng": 121.461963, "subj": {"本土語文(閩南語)": 1, "童軍": 1}, "est": false, "id": 57}, {"n": "海山高中", "f": "新北市立海山高級中學", "d": "土城", "z": "板橋", "lat": 25.010238, "lng": 121.471155, "subj": {"本土語文(客語)": 1, "地球科學": 1, "體育": 2, "特教身障": 2, "特教資優(生物)": 1, "專任輔導": 1}, "est": false, "id": 58}, {"n": "光復高中", "f": "新北市立光復高級中學", "d": "板橋", "z": "板橋", "lat": 25.016671, "lng": 121.482684, "subj": {"特教資優(國文)": 1}, "est": false, "id": 59}, {"n": "清水高中", "f": "新北市立清水高級中學", "d": "土城", "z": "板橋", "lat": 24.981907, "lng": 121.465086, "subj": {"國文": 2, "英語": 1, "數學": 1, "公民與社會": 1, "表演藝術": 1, "輔導": 1, "特教身障": 1}, "est": false, "id": 60}, {"n": "明德高中", "f": "新北市立明德高級中學", "d": "三峽", "z": "三鶯", "lat": 24.905465, "lng": 121.365098, "subj": {"國文": 2, "本土語文(閩南語)": 1, "數學": 3, "音樂": 2, "視覺藝術": 1, "資訊科技": 1, "健康教育": 1, "體育(專長類科)": 1}, "est": false, "id": 61}, {"n": "樹林高中", "f": "新北市立樹林高級中學", "d": "樹林", "z": "三鶯", "lat": 24.984165, "lng": 121.42268, "subj": {"國文": 3, "數學": 1, "歷史": 1, "地球科學": 1, "家政": 1, "健康教育": 1, "健康教育(雙語)": 1, "特教身障": 2}, "est": false, "id": 62}, {"n": "北大高中", "f": "新北市立北大高級中學", "d": "三峽", "z": "三鶯", "lat": 24.948037, "lng": 121.375897, "subj": {"表演藝術": 1, "特教身障": 1}, "est": false, "id": 63}, {"n": "永平高中", "f": "新北市立永平高級中學", "d": "永和", "z": "雙和", "lat": 25.010638, "lng": 121.508269, "subj": {"童軍": 1, "家政": 1, "資訊科技": 1}, "est": false, "id": 64}, {"n": "錦和高中", "f": "新北市立錦和高級中學", "d": "中和", "z": "雙和", "lat": 24.992496, "lng": 121.491104, "subj": {"國文": 1, "英語": 2, "本土語文(客語)": 1, "歷史": 1, "地理": 1, "公民與社會": 1, "視覺藝術": 1, "童軍": 1, "生活科技": 1, "健康教育": 1, "體育": 1, "特教身障": 2, "特教資優(理化)": 1}, "est": false, "id": 65}, {"n": "金山高中", "f": "新北市立金山高級中學", "d": "金山", "z": "七星", "lat": 25.224498, "lng": 121.637549, "subj": {"特教身障": 2}, "est": false, "id": 66}, {"n": "秀峰高中", "f": "新北市立秀峰高級中學", "d": "汐止", "z": "七星", "lat": 25.065593, "lng": 121.659851, "subj": {"國文": 1, "家政": 1}, "est": false, "id": 67}, {"n": "樟樹國際實創高中", "f": "新北市立樟樹國際實創高級中等學校", "d": "汐止", "z": "七星", "lat": 25.065811, "lng": 121.63971, "subj": {"國文": 2, "童軍": 1, "生活科技": 1, "資訊科技": 1, "特教身障": 2}, "est": false, "id": 68}, {"n": "石碇高中", "f": "新北市立石碇高級中學", "d": "石碇", "z": "文山", "lat": 25.013305, "lng": 121.642789, "subj": {}, "est": false, "id": 69}, {"n": "安康高中", "f": "新北市立安康高級中學", "d": "新店", "z": "文山", "lat": 24.970129, "lng": 121.51451, "subj": {"健康教育": 1, "特教身障": 1}, "est": false, "id": 70}, {"n": "竹圍高中", "f": "新北市立竹圍高級中學", "d": "淡水", "z": "淡水", "lat": 25.146016, "lng": 121.463438, "subj": {"理化": 1, "地球科學": 1}, "est": false, "id": 71}, {"n": "丹鳳高中", "f": "新北市立丹鳳高級中學", "d": "新莊", "z": "新莊", "lat": 25.020408, "lng": 121.416127, "subj": {"本土語文(閩南語)": 1, "童軍(雙語)": 1, "體育": 1}, "est": false, "id": 72}, {"n": "三重高中", "f": "新北市立三重高級中學", "d": "三重", "z": "三重", "lat": 25.055181, "lng": 121.490728, "subj": {"數學": 1, "視覺藝術(專長類科)": 1}, "est": false, "id": 73}, {"n": "三民高中", "f": "新北市立三民高級中學", "d": "蘆洲", "z": "三重", "lat": 25.086315, "lng": 121.473182, "subj": {"國文": 3, "本土語文(閩南語)": 1, "數學": 2, "輔導": 1, "特教身障": 1, "專任輔導": 1}, "est": false, "id": 74}, {"n": "新北特教學校", "f": "新北市立新北特殊教育學校", "d": "三重", "z": "林口", "lat": 25.0688, "lng": 121.4906, "subj": {"特教身障": 3}, "est": true, "id": 75}];
+let SUBJECT="國文";
+const SUBJECTS=[["國文","國文"],["英語","英語"],["本土語文(閩南語)","本土語（閩南語）"],["本土語文(客語)","本土語（客語）"],["數學","數學"],["歷史","歷史"],["地理","地理"],["公民與社會","公民與社會"],["生物","生物"],["理化","理化"],["地球科學","地球科學"],["音樂","音樂"],["音樂(雙語)","音樂（雙語）"],["視覺藝術","視覺藝術"],["視覺藝術(雙語)","視覺藝術（雙語）"],["視覺藝術(專長類科)","視覺藝術（專長類科）"],["表演藝術","表演藝術"],["表演藝術(雙語)","表演藝術（雙語）"],["童軍","童軍"],["童軍(雙語)","童軍（雙語）"],["輔導","輔導"],["家政","家政"],["家政(雙語)","家政（雙語）"],["生活科技","生活科技"],["生活科技(雙語)","生活科技（雙語）"],["資訊科技","資訊科技"],["健康教育","健康教育"],["健康教育(雙語)","健康教育（雙語）"],["體育","體育"],["體育(雙語)","體育（雙語）"],["體育(專長類科)","體育（專長類科）"],["特教身障","特教身障"],["特教資優(數學)","特教資優（數學）"],["特教資優(理化)","特教資優（理化）"],["特教資優(生物)","特教資優（生物）"],["特教資優(國文)","特教資優（國文）"],["特教資優(英語)","特教資優（英語）"],["專任輔導","專任輔導"]];
+const DATA = RAW.map((d,i)=>({id:i, ...d, o:(d.subj["國文"]||0), s:null, r:null}));
+function setSubjOpen(){DATA.forEach(d=>d.o=d.subj[SUBJECT]||0);}
+const ORIGIN_KEY="ntpc_origin_v1"; let RANK_KEY="ntpc_rank_國文", NOTES_KEY="ntpc_notes_國文";
+const store={ get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}} };
+const _P=new URLSearchParams(location.search);
+const GROUP=_P.get("g"), ONLY=_P.get("only");
+function subjTotal(k){return DATA.reduce((a,d)=>a+(d.subj[k]||0),0);}
+let LOCKED=false, SUBJ_LIST;
+if(ONLY&&SUBJECTS.some(s=>s[0]===ONLY)){LOCKED=true;SUBJECT=ONLY;SUBJ_LIST=SUBJECTS.filter(s=>s[0]===ONLY);}
+else if(GROUP==="other"){SUBJ_LIST=SUBJECTS.filter(([k])=>subjTotal(k)<20);}
+else{SUBJ_LIST=SUBJECTS;}
+(function(){const q=_P.get("subj");
+  if(!LOCKED){
+    if(q&&SUBJ_LIST.some(s=>s[0]===q)){SUBJECT=q;}
+    else if(!SUBJ_LIST.some(s=>s[0]===SUBJECT)){SUBJECT=SUBJ_LIST.slice().sort((a,b)=>subjTotal(b[0])-subjTotal(a[0]))[0][0];}
+  }
+  RANK_KEY="ntpc_rank_"+SUBJECT;NOTES_KEY="ntpc_notes_"+SUBJECT;})();
+
+const ZONECOLOR={板橋:"#e6550d",三鶯:"#31a354",雙和:"#3182bd",七星:"#756bb1",文山:"#d63384",瑞芳:"#1b9e77",淡水:"#66a61e",新莊:"#d95f02",三重:"#7570b3",林口:"#8c564b"};
+function band(r){ if(r==null) return null; return r<=5?"near": r<=20?"mid":"far"; }
+function hav(aLat,aLng,bLat,bLng){const R=6371,r=Math.PI/180;const dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;
+  const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+
+let origin=store.get(ORIGIN_KEY)||null;
+// 一次性接續：把舊版國文工具(/Chinese/)的志願序與備註帶進本工具的國文（同網域 localStorage 共用；住家點本就共用同一個鍵）
+(function(){try{
+  if(store.get("ntpc_rank_國文")!==null) return;      // 已有新國文資料就不覆蓋
+  var oR=store.get("ntpc_rank_v1"); if(!oR||!oR.length) return;
+  var oN=store.get("ntpc_notes_v1")||{};
+  var OLD=["新北市立佳林國民中學","新北市立林口國民中學","新北市立南勢國民中學","新北市立崇林國民中學","新北市立五股國民中學","新北市立八里國民中學","新北市立義學國民中學","新北市立福營國民中學","新北市立蘆洲國民中學","新北市立新莊國民中學","新北市立三民高級中學","新北市立板橋國民中學","新北市立新埔國民中學","新北市立大觀國民中學","新北市立三和國民中學","新北市立中山國民中學","新北市立淡水國民中學","新北市立育林國民中學","新北市立樹林高級中學","新北市立正德國民中學（孝賢）","新北市立自強國民中學","新北市立鳳鳴國民中學","新北市立清水高級中學","新北市立錦和高級中學","新北市立漳和國民中學","新北市立三峽國民中學","新北市立中和國民中學","新北市立安溪國民中學","新北市立達觀國民中小學","新北市立明德高級中學","新北市立文山國民中學","新北市立深坑國民中學","新北市立樟樹國際實創高級中等學校","新北市立青山國民中小學","新北市立汐止國民中學","新北市立秀峰高級中學","新北市立平溪國民中學","新北市立瑞芳國民中學","新北市立欽賢國民中學"];
+  var nm=function(s){return (s||"").replace(/新北市立|（孝賢）|\(孝賢\)|國民中小學|國民中學|高級中等學校|高級中學|國中小|國中|高中/g,"").trim();};
+  var map={}; DATA.forEach(function(d){map[nm(d.f)]=d.id;});
+  var nr=[],seen={};
+  oR.forEach(function(i){var n=OLD[i]; if(n==null)return; var id=map[nm(n)]; if(id!==undefined&&!seen[id]){seen[id]=1;nr.push(id);}});
+  var nn={}; Object.keys(oN).forEach(function(i){var n=OLD[+i]; if(n==null)return; var id=map[nm(n)]; if(id!==undefined) nn[id]=oN[i];});
+  if(nr.length){store.set("ntpc_rank_國文",nr); store.set("ntpc_notes_國文",nn);}
+}catch(e){}})();
+let ranked=store.get(RANK_KEY)||[];
+let notes=store.get(NOTES_KEY)||{};
+
+function recompute(){ DATA.forEach(d=>{ if(origin){const s=hav(origin.lat,origin.lng,d.lat,d.lng);d.s=Math.round(s*10)/10;d.r=Math.round(s*1.35*10)/10;} else {d.s=null;d.r=null;} }); }
+function mapsUrl(d){ const o=origin?"origin="+encodeURIComponent(origin.text)+"&":""; return "https://www.google.com/maps/dir/?api=1&"+o+"destination="+d.lat+","+d.lng+"&travelmode=driving"; }
+
+/* ---------- Tabs ---------- */
+let map=null, markers=[], homeMarker=null, picking=false;
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on")); t.classList.add("on");
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+  document.getElementById("p-"+t.dataset.p).classList.add("on");
+  if(t.dataset.p==="map"){ initMap(); setTimeout(()=>map&&map.invalidateSize(),60); }
+}));
+
+/* ---------- ① Map ---------- */
+function initMap(){
+  if(map) return;
+  map=L.map("map").setView([25.05,121.5],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(map);
+  drawMarkers();
+  map.on("click",e=>{ if(!picking)return;
+    const la=e.latlng.lat, ln=e.latlng.lng;
+    setOrigin(la,ln,la.toFixed(5)+","+ln.toFixed(5));
+    picking=false; document.getElementById("map").classList.remove("picking");
+    document.getElementById("pickHome").textContent="📍 在地圖上點我家（設為出發點）";
+    document.getElementById("pickMsg").textContent="已設定出發點！切到「距離估算」看排序結果。";
+  });
+  if(origin) placeHome(origin.lat,origin.lng);
+  const lg=document.getElementById("maplegend");
+  lg.innerHTML=Object.entries(ZONECOLOR).map(([z,c])=>'<span><i class="dot" style="background:'+c+'"></i>'+z+'</span>').join("");
+}
+function placeHome(lat,lng){ if(!map)return; if(homeMarker)map.removeLayer(homeMarker);
+  homeMarker=L.circleMarker([lat,lng],{radius:9,fillColor:"#111827",color:"#fff",weight:3,fillOpacity:1}).addTo(map).bindPopup("你的出發點");
+}
+function drawMarkers(){
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  DATA.filter(d=>d.o>0).forEach(d=>{
+    const c=ZONECOLOR[d.z]||"#0f6e6e";
+    const m=L.circleMarker([d.lat,d.lng],{radius:6+d.o*1.3,fillColor:c,color:"#fff",weight:1.5,fillOpacity:.9}).addTo(map);
+    const dist=d.r!=null?('<div class="meta">估道路約 '+d.r.toFixed(1)+' km</div>'):"";
+    m.bindPopup('<div class="pop"><b>'+d.n+'</b><div class="meta">'+d.d+' · '+SUBJECT+'開缺 '+d.o+'</div>'+dist+
+      '<a href="'+mapsUrl(d)+'" target="_blank" rel="noopener">開 Google 路線 ↗</a><br>'+
+      '<button onclick="window.addRank('+d.id+')">＋加入志願序</button></div>');
+    markers.push(m);
+  });
+}
+
+/* ---------- ② Distance ---------- */
+let sortKey="o",sortDir=-1,bandFilter="all",distFilter="all";
+// 行政區篩選（chips）
+const distCount={}; DATA.forEach(d=>{distCount[d.d]=(distCount[d.d]||0)+1;});
+const dists=Object.keys(distCount).sort((a,b)=>distCount[b]-distCount[a]||a.localeCompare(b,"zh-Hant"));
+const dchips=document.getElementById("distChips");
+function mkDChip(l,v){const s=document.createElement("span");s.className="chip dist-f"+(v==="all"?" on":"");s.textContent=l;s.dataset.d=v;return s;}
+dchips.appendChild(mkDChip("全部","all"));
+dists.forEach(z=>dchips.appendChild(mkDChip(z,z)));
+dchips.addEventListener("click",e=>{const c=e.target.closest(".dist-f");if(!c)return;
+  dchips.querySelectorAll(".dist-f").forEach(x=>x.classList.remove("on"));c.classList.add("on");distFilter=c.dataset.d;renderTable();});
+function renderTable(){
+  let rows=DATA.filter(d=>d.o>0&&(distFilter==="all"||d.d===distFilter)&&(bandFilter==="all"||band(d.r)===bandFilter));
+  rows.sort((a,b)=>{let va=a[sortKey],vb=b[sortKey];
+    if(va==null&&vb==null)return 0; if(va==null)return 1; if(vb==null)return -1;
+    if(typeof va==="string")return va.localeCompare(vb,"zh-Hant")*sortDir; return (va-vb)*sortDir;});
+  const tb=document.getElementById("tb");tb.innerHTML="";
+  rows.forEach((d,i)=>{const bd=band(d.r);const tr=document.createElement("tr");if(bd)tr.className={near:"r-near",mid:"r-mid",far:"r-far"}[bd];
+    const bc=bd==="near"?"var(--near)":bd==="mid"?"var(--mid)":bd==="far"?"var(--far)":"var(--ink-soft)";
+    tr.innerHTML='<td class="rank">'+(i+1)+'</td><td><span class="sname">'+d.n+'</span><span class="zone">'+d.d+'</span></td>'+
+      '<td class="num"><span class="openbadge">'+d.o+'</span></td>'+
+      '<td class="num band" style="color:'+bc+'">'+(d.s==null?"—":d.s.toFixed(1))+'</td>'+
+      '<td class="num">'+(d.r==null?"—":d.r.toFixed(1))+'</td>'+
+      '<td><a class="nav" href="'+mapsUrl(d)+'" target="_blank" rel="noopener">路線</a> <span class="addbtn" onclick="window.addRank('+d.id+')">＋志願</span></td>';
+    tb.appendChild(tr);});
+  document.querySelectorAll("thead th[data-sort]").forEach(th=>{const ar=th.querySelector(".ar");
+    if(th.dataset.sort===sortKey){th.classList.add("sorted");ar.textContent=sortDir===1?"↓":"↑";}else{th.classList.remove("sorted");ar.textContent="↕";}});
+}
+function setOrigin(lat,lng,text){origin={lat:+lat,lng:+lng,text:text};store.set(ORIGIN_KEY,origin);recompute();
+  sortKey="s";sortDir=1;renderTable();if(map){drawMarkers();placeHome(origin.lat,origin.lng);}renderRank();updateOriginStatus();}
+function updateOriginStatus(){const el=document.getElementById("originNow");if(!el)return;
+  if(origin){el.className="originnow set";const isCoord=/^-?\d/.test(origin.text||"");el.textContent="✓ 已設定出發點："+(isCoord?"地圖／座標點選":origin.text)+"，表格已依距離排序。";}
+  else{el.className="originnow";el.textContent="目前尚未設定出發點，表格先依開缺數排序。";}}
+async function geocode(){
+  const q=document.getElementById("addr").value.trim();const msg=document.getElementById("msg");
+  if(!q){msg.className="err";msg.textContent="請先輸入地址。";return;}
+  const cm=q.match(/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]+\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if(cm){ let la=+cm[1],ln=+cm[2]; if(la>100&&ln<50){const t=la;la=ln;ln=t;}
+    if(la>=20&&la<=27&&ln>=118&&ln<=123){ setOrigin(la,ln,la+","+ln); msg.className="ok"; msg.textContent="已用座標定位：表格與地圖已更新。"; return; }
+  }
+  const b=document.getElementById("go");b.disabled=true;msg.className="load";msg.textContent="定位中…";
+  try{const u="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tw&accept-language=zh-TW&q="+encodeURIComponent(q);
+    const j=await (await fetch(u,{headers:{Accept:"application/json"}})).json();
+    if(!j.length){msg.className="err";msg.textContent="找不到這個地址。試更完整寫法（含縣市區），或到「學校地圖」分頁直接點你家、或改用座標。";return;}
+    setOrigin(j[0].lat,j[0].lon,q);msg.className="ok";msg.textContent="已定位：表格與地圖已依此出發點更新。";
+  }catch(e){msg.className="err";msg.textContent="定位服務連不上。若在預覽視窗，請先下載檔案用瀏覽器開啟；或改用座標／地圖點選。";}
+  finally{b.disabled=false;}
+}
+document.getElementById("pickHome").addEventListener("click",()=>{
+  picking=!picking;
+  document.getElementById("map").classList.toggle("picking",picking);
+  document.getElementById("pickHome").textContent=picking?"👆 點地圖上你家的位置…（再按一次取消）":"📍 在地圖上點我家（設為出發點）";
+  document.getElementById("pickMsg").textContent=picking?"在地圖上輕點你家所在位置":"";
+});
+document.getElementById("pickHome2").addEventListener("click",()=>{
+  document.querySelector('.tab[data-p="map"]').click();
+  picking=true;
+  setTimeout(()=>{const m=document.getElementById("map");if(m)m.classList.add("picking");
+    document.getElementById("pickHome").textContent="👆 點地圖上你家的位置…（再按一次取消）";
+    document.getElementById("pickMsg").textContent="在地圖上輕點你家所在位置";
+    if(map)map.invalidateSize();},120);
+});
+document.getElementById("go").addEventListener("click",geocode);
+document.getElementById("addr").addEventListener("keydown",e=>{if(e.key==="Enter")geocode();});
+document.getElementById("mgo").addEventListener("click",()=>{const msg=document.getElementById("msg");
+  let la,ln; const raw=mlat.value.trim();
+  const cm=raw.match(/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]+\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if(cm){la=+cm[1];ln=+cm[2];} else {la=parseFloat(mlat.value);ln=parseFloat(mlng.value);}
+  if(la>100&&ln<50){const t=la;la=ln;ln=t;}
+  if(isNaN(la)||isNaN(ln)){msg.className="err";msg.textContent="座標格式不對，例如貼上 25.08, 121.38，或分兩格填緯度、經度。";return;}
+  setOrigin(la,ln,la+","+ln);msg.className="ok";msg.textContent="已用座標定位。";});
+document.querySelectorAll(".band-f").forEach(c=>c.addEventListener("click",()=>{
+  document.querySelectorAll(".band-f").forEach(x=>x.classList.remove("on"));c.classList.add("on");bandFilter=c.dataset.band;renderTable();}));
+document.querySelectorAll("thead th[data-sort]").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="o")?-1:1;}renderTable();}));
+
+/* ---------- ③ Ranking ---------- */
+window.addRank=function(id){ if(!ranked.includes(id)){ranked.push(id);store.set(RANK_KEY,ranked);renderRank();renderCand();} };
+function removeRank(id){ranked=ranked.filter(x=>x!==id);store.set(RANK_KEY,ranked);renderRank();renderCand();}
+function moveRank(id,dir){const i=ranked.indexOf(id),j=i+dir;if(j<0||j>=ranked.length)return;
+  [ranked[i],ranked[j]]=[ranked[j],ranked[i]];store.set(RANK_KEY,ranked);renderRank();}
+function setRankPos(id,val){let v=parseInt(String(val).replace(/[^0-9]/g,""),10);
+  if(isNaN(v)){renderRank();return;} v=Math.max(1,Math.min(ranked.length,v));
+  const i=ranked.indexOf(id); if(i<0||v-1===i){renderRank();return;}
+  ranked.splice(i,1); ranked.splice(v-1,0,id); store.set(RANK_KEY,ranked); renderRank();}
+function byId(id){return DATA.find(d=>d.id===id);}
+function renderRank(){
+  const el=document.getElementById("rankList");
+  if(!ranked.length){el.innerHTML='<div class="empty">還沒有志願。從右邊、地圖或表格加入。</div>';return;}
+  el.innerHTML="";
+  ranked.forEach((id,i)=>{const d=byId(id);const div=document.createElement("div");
+    div.className="item"+(i===0?" first":"");div.draggable=true;div.dataset.id=id;
+    const dtxt=d.r!=null?('<span class="d">約 '+d.r.toFixed(1)+' km</span>'):"";
+    div.innerHTML=
+      '<input class="rkin" inputmode="numeric" aria-label="志願序" value="'+(i+1)+'">'+
+      '<div class="itmain"><span class="nm">'+d.n+' <span class="z">（'+d.d+'・缺'+d.o+'）</span></span>'+
+        '<input class="notein" aria-label="備註" placeholder="備註…"></div>'+
+      dtxt+
+      '<div class="itacts"><button class="iconbtn" data-a="up">▲</button><button class="iconbtn" data-a="dn">▼</button><button class="iconbtn" data-a="rm">✕</button></div>';
+    const rk=div.querySelector(".rkin");
+    rk.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();rk.blur();}});
+    rk.addEventListener("change",()=>setRankPos(id,rk.value));
+    rk.addEventListener("focus",()=>rk.select());
+    const nt=div.querySelector(".notein"); nt.value=notes[id]||"";
+    nt.addEventListener("input",()=>{notes[id]=nt.value;store.set(NOTES_KEY,notes);});
+    div.querySelector('[data-a=up]').onclick=()=>moveRank(id,-1);
+    div.querySelector('[data-a=dn]').onclick=()=>moveRank(id,1);
+    div.querySelector('[data-a=rm]').onclick=()=>removeRank(id);
+    el.appendChild(div);});
+  enableDrag(el);
+}
+function enableDrag(el){let dragEl=null;
+  el.querySelectorAll(".item").forEach(it=>{
+    it.addEventListener("dragstart",e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="BUTTON"){e.preventDefault();return;}dragEl=it;it.classList.add("dragging");});
+    it.addEventListener("dragend",()=>{it.classList.remove("dragging");
+      const ids=[...el.querySelectorAll(".item")].map(x=>+x.dataset.id);ranked=ids;store.set(RANK_KEY,ranked);renderRank();});
+  });
+  el.addEventListener("dragover",e=>{e.preventDefault();const after=getAfter(el,e.clientY);
+    if(!dragEl)return; if(after==null)el.appendChild(dragEl);else el.insertBefore(dragEl,after);});
+}
+function getAfter(el,y){const els=[...el.querySelectorAll(".item:not(.dragging)")];
+  return els.reduce((c,ch)=>{const box=ch.getBoundingClientRect();const off=y-box.top-box.height/2;
+    if(off<0&&off>c.offset)return{offset:off,element:ch};return c;},{offset:-Infinity,element:null}).element;}
+let candSearch="";
+document.getElementById("candSearch").addEventListener("input",e=>{candSearch=e.target.value.trim();renderCand();});
+function renderCand(){
+  const ACT=DATA.filter(d=>d.o>0);
+  const el=document.getElementById("candList");
+  let list=DATA.filter(d=>!ranked.includes(d.id));
+  if(candSearch){const q=candSearch;list=list.filter(d=>d.n.includes(q)||d.z.includes(q)||d.d.includes(q));}
+  list.sort((a,b)=>b.o-a.o);
+  if(!list.length){el.innerHTML='<div class="empty">沒有符合的學校。</div>';return;}
+  el.innerHTML="";
+  list.forEach(d=>{const div=document.createElement("div");div.className="item";
+    const dtxt=d.r!=null?('<span class="d">約 '+d.r.toFixed(1)+' km</span>'):"";
+    div.innerHTML='<span class="nm">'+d.n+' <span class="z">（'+d.d+'・缺'+d.o+'）</span></span>'+dtxt+'<button class="addbtn" data-id="'+d.id+'">＋加入</button>';
+    div.querySelector(".addbtn").onclick=()=>window.addRank(d.id);el.appendChild(div);});
+}
+document.getElementById("clearBtn").addEventListener("click",()=>{if(confirm("確定清空所有志願？")){ranked=[];store.del(RANK_KEY);renderRank();renderCand();}});
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  if(!ranked.length){alert("志願序是空的，先加入學校再匯出。");return;}
+  const q=s=>'"'+String(s==null?"":s).replace(/"/g,'""')+'"';
+  let csv="\uFEFF志願序,學校,實際區,科目,開缺數,直線km,估道路km,備註\n";
+  ranked.forEach((id,i)=>{const d=byId(id);csv+=[i+1,q(d.n),d.d,SUBJECT,d.o,d.s==null?"":d.s,d.r==null?"":d.r,q(notes[id]||"")].join(",")+"\n";});
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="我的志願序.csv";a.click();URL.revokeObjectURL(a.href);
+});
+
+/* 儲存／載入進度（.json）＋ 存 PDF */
+function saveProgress(){
+  if(!ranked.length){alert("志願序是空的，先排一些再儲存。");return;}
+  const state={app:"ntpc-115-allsubj",v:1,savedAt:new Date().toISOString(),origin:origin,
+    ranked:ranked.map(id=>{const d=byId(id);return {school:d.n,full:d.f||"",district:d.d,subject:SUBJECT,open:d.o,note:notes[id]||""};})};
+  const p=n=>String(n).padStart(2,"0"),dt=new Date();
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));
+  a.download="志願排序_進度_"+dt.getFullYear()+p(dt.getMonth()+1)+p(dt.getDate())+".json";
+  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),800);
+}
+function findId(name,full){ const d=DATA.find(x=>x.n===name||(full&&x.f===full)||(name&&x.f===name)||(name&&x.n&&name.indexOf(x.n)>=0)); return d?d.id:null; }
+function loadProgress(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const data=JSON.parse(r.result);
+    const arr=Array.isArray(data)?data:(data.ranked||data.items||[]);
+    if(!Array.isArray(arr)||!arr.length) throw 0;
+    const nr=[],nn={};
+    arr.forEach(x=>{const id=findId(String(x.school||""),String(x.full||""));if(id!=null&&!nr.includes(id)){nr.push(id);if(x.note)nn[id]=String(x.note);}});
+    if(!nr.length) throw 0;
+    ranked=nr;notes=nn;
+    if(data.origin&&data.origin.lat){origin=data.origin;store.set(ORIGIN_KEY,origin);
+      document.getElementById("addr").value=(origin.text&&origin.text!==origin.lat+","+origin.lng)?origin.text:"";}
+    store.set(RANK_KEY,ranked);store.set(NOTES_KEY,notes);
+    recompute();renderTable();renderRank();renderCand();if(map)drawMarkers();
+    alert("已載入進度（"+ranked.length+" 校）");
+  }catch(e){ alert("讀不到這個檔，請選之前用「儲存進度」下載的 .json 檔。"); } };
+  r.readAsText(file);
+}
+document.getElementById("saveBtn").addEventListener("click",saveProgress);
+document.getElementById("loadBtn").addEventListener("click",()=>document.getElementById("progFile").click());
+document.getElementById("progFile").addEventListener("change",e=>{const f=e.target.files[0];if(f)loadProgress(f);e.target.value="";});
+document.getElementById("printBtn").addEventListener("click",()=>{
+  if(!ranked.length){alert("志願序是空的，先排一些再存 PDF。");return;}
+  document.querySelector('.tab[data-p="rank"]').click();
+  setTimeout(()=>window.print(),220);
+});
+
+/* init */
+// 科目列：鎖定單科（?only=）時不顯示下拉，只顯示科目名稱
+const subjSel=document.getElementById("subjSel");
+function updateSubjInfo(){const act=DATA.filter(d=>d.o>0);const tot=act.reduce((a,d)=>a+d.o,0);
+  document.getElementById("subjInfo").textContent="目前："+SUBJECT+"，"+act.length+" 校、共 "+tot+" 名";}
+function switchSubject(v){SUBJECT=v;setSubjOpen();RANK_KEY="ntpc_rank_"+SUBJECT;NOTES_KEY="ntpc_notes_"+SUBJECT;
+  ranked=store.get(RANK_KEY)||[];notes=store.get(NOTES_KEY)||{};
+  try{history.replaceState(null,"",(GROUP==="other"?"?g=other&subj=":"?subj=")+encodeURIComponent(SUBJECT));}catch(e){}
+  updateSubjInfo();recompute();renderTable();renderRank();renderCand();
+  if(map){drawMarkers();if(origin)placeHome(origin.lat,origin.lng);}}
+if(LOCKED){
+  subjSel.style.display="none";
+  const lab=SUBJECTS.find(s=>s[0]===SUBJECT);
+  const sp=document.createElement("span"); sp.className="locksubj"; sp.textContent=(lab?lab[1]:SUBJECT);
+  subjSel.parentNode.insertBefore(sp,subjSel);
+  const bk=document.createElement("a"); bk.href="../"; bk.className="backlink"; bk.textContent="看其他科目 ▸";
+  subjSel.parentNode.appendChild(bk);
+}else{
+  subjSel.innerHTML=SUBJ_LIST.map(([k,l])=>'<option value="'+k+'">'+l+'</option>').join("");
+  subjSel.value=SUBJECT;
+  subjSel.addEventListener("change",e=>switchSubject(e.target.value));
+}
+subjSel.addEventListener("change",e=>switchSubject(e.target.value));
+setSubjOpen();
+
+recompute(); renderTable(); renderRank(); renderCand(); initMap();
+if(origin && !/^-?\d/.test(origin.text||"")){document.getElementById("addr").value=origin.text;}
+updateOriginStatus(); updateSubjInfo();
+</script>
+</body>
+</html>
